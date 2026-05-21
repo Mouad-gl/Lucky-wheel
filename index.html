@@ -273,12 +273,16 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 .tog input:checked+.tog-sl::before{transform:translateX(18px)}
 
 /* Entry list */
-.elist{max-height:280px;overflow-y:auto;margin-bottom:10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
-.eitem{display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:7px 8px;border-radius:7px;transition:background .15s;cursor:default}
-.eitem:hover{background:rgba(255,255,255,.05)}
-.eitem-top{display:flex;align-items:center;gap:8px}
-.edot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.entry-thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;background:rgba(255,255,255,.05)}
+.elist{margin-bottom:10px}
+.eitem{
+  display:flex;flex-direction:column;gap:6px;
+  padding:10px;margin-bottom:8px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:10px;background:rgba(255,255,255,.025);
+}
+.eitem-hdr{display:flex;align-items:center;justify-content:space-between}
+.eitem-num{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555}
+.eitem-row{display:flex;align-items:center;gap:6px}
 .elbl-input{
   flex:1;min-width:0;background:transparent;
   border:none;border-bottom:1px solid rgba(255,255,255,.08);
@@ -288,21 +292,24 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 .elbl-input:focus{border-bottom-color:var(--primary)}
 .elbl-input::placeholder{color:#444}
 .eweight{
-  width:46px;padding:4px 6px;
+  width:44px;padding:4px 6px;
   background:rgba(255,255,255,.07);
   border:1px solid rgba(255,255,255,.12);
   border-radius:6px;color:#fff;font-size:.8rem;
   text-align:center;outline:none;flex-shrink:0;
-  transition:border-color .2s;
-  -moz-appearance:textfield;
+  transition:border-color .2s;-moz-appearance:textfield;
 }
 .eweight::-webkit-inner-spin-button,.eweight::-webkit-outer-spin-button{-webkit-appearance:none}
 .eweight:focus{border-color:var(--primary)}
-.epct{font-size:.72rem;color:#555;flex-shrink:0;width:34px;text-align:right}
-.edel{background:none;border:none;color:rgba(255,80,80,.5);cursor:pointer;font-size:.85rem;padding:2px 6px;border-radius:4px;transition:color .15s,background .15s;line-height:1}
+.epct{font-size:.72rem;color:#555;flex-shrink:0;width:28px;text-align:right}
+.edel{background:none;border:none;color:rgba(255,80,80,.5);cursor:pointer;font-size:.85rem;padding:2px 6px;border-radius:4px;transition:color .15s,background .15s;line-height:1;flex-shrink:0}
 .edel:hover{color:#ff5555;background:rgba(255,85,85,.12)}
+.epopup-section{border-top:1px solid rgba(255,255,255,.05);padding-top:8px;margin-top:2px}
+.epopup-hdr{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#444;margin-bottom:6px}
+.epopup-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.epopup-lbl{font-size:.72rem;color:#666;width:44px;flex-shrink:0}
 .epopup{
-  width:100%;padding:3px 8px;
+  flex:1;min-width:0;padding:4px 8px;
   background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);
   border-radius:5px;color:#777;font-size:.72rem;outline:none;
   transition:border-color .2s,color .2s;
@@ -542,6 +549,7 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
     <img id="resultImg" src="" alt="" style="display:none;width:96px;height:96px;object-fit:cover;border-radius:12px;margin:0 auto 12px;box-shadow:0 4px 20px rgba(0,0,0,.6)"/>
     <div class="rlbl" id="popupTitleEl">Winner</div>
     <div class="rwinner" id="resultText"></div>
+    <div id="popupTextEl" style="font-size:.85rem;color:#bbb;margin:-10px 0 18px;line-height:1.5;display:none"></div>
     <button class="rclose" id="resultClose">Awesome!</button>
   </div>
 </div>
@@ -627,8 +635,13 @@ const DEFAULTS = {
 
 // Normalise an entry — backward compat with old string/weight formats
 function normEntry(e) {
-  if (typeof e === 'string') return { label: e, imageUrl: '', popupImageUrl: '', prob: 1 };
-  return { label: e.label || '', imageUrl: e.imageUrl || '', popupImageUrl: e.popupImageUrl || '', prob: Math.max(0, Number(e.prob ?? e.weight) || 1) };
+  if (typeof e === 'string') return { label: e, imageUrl: '', popupImageUrl: '', popupTitle: '', popupText: '', popupBtnText: '', prob: 1 };
+  return {
+    label: e.label || '', imageUrl: e.imageUrl || '',
+    popupImageUrl: e.popupImageUrl || '',
+    popupTitle: e.popupTitle || '', popupText: e.popupText || '', popupBtnText: e.popupBtnText || '',
+    prob: Math.max(0, Number(e.prob ?? e.weight) || 1),
+  };
 }
 
 // Pick a winner index using probability weights
@@ -985,16 +998,23 @@ function spin() {
 function showResult() {
   const winner = normEntry(cfg.entries[currentWinner]);
   const ov = document.getElementById('overlay');
-  document.getElementById('resultText').textContent = winner.label;
+
+  document.getElementById('resultText').textContent    = winner.label;
+  document.getElementById('popupTitleEl').textContent  = winner.popupTitle  || cfg.popupTitle  || 'Winner';
+  document.getElementById('resultClose').textContent   = winner.popupBtnText || cfg.popupBtnText || 'Awesome!';
+
+  const textEl = document.getElementById('popupTextEl');
+  if (winner.popupText) {
+    textEl.textContent = winner.popupText;
+    textEl.style.display = 'block';
+  } else {
+    textEl.style.display = 'none';
+  }
 
   const imgEl = document.getElementById('resultImg');
   const popupSrc = winner.popupImageUrl || winner.imageUrl;
-  if (popupSrc) {
-    imgEl.src = popupSrc;
-    imgEl.style.display = 'block';
-  } else {
-    imgEl.style.display = 'none';
-  }
+  if (popupSrc) { imgEl.src = popupSrc; imgEl.style.display = 'block'; }
+  else           { imgEl.style.display = 'none'; }
 
   ov.classList.add('show');
   launchConfetti();
@@ -1119,25 +1139,38 @@ function renderEntryList() {
   const entries = cfg.entries.map(normEntry);
   const total   = entries.reduce((s, e) => s + e.prob, 0) || 1;
   list.innerHTML = entries.map((e, i) => {
-    const thumb = e.imageUrl
-      ? `<img src="${esc(e.imageUrl)}" class="entry-thumb" onerror="this.style.opacity='.2'" alt=""/>`
-      : '';
     const pct = Math.round(e.prob / total * 100);
     return `<div class="eitem">
-      <div class="eitem-top">
-        ${thumb}
-        <input type="text" class="elbl-input" value="${esc(e.label)}" placeholder="Prize name" maxlength="40" data-li="${i}"/>
-        <input type="number" class="eweight" min="0" max="9999" value="${e.prob}" data-wi="${i}" title="Chance (higher = more likely to win)"/>
-        <span class="epct">${pct}%</span>
+      <div class="eitem-hdr">
+        <span class="eitem-num">Prize ${i + 1}</span>
         <button class="edel" data-i="${i}">✕</button>
       </div>
-      <div style="display:flex;gap:4px;align-items:center">
-        <input type="url" class="epopup" placeholder="Wheel image URL…" value="${esc(e.imageUrl)}" data-img="${i}" style="flex:1;margin:0"/>
-        <button class="upbtn" data-uimg="${i}" style="font-size:.68rem;padding:3px 7px">⬆</button>
+      <div class="eitem-row">
+        <input type="text" class="elbl-input" value="${esc(e.label)}" placeholder="Name" maxlength="40" data-li="${i}"/>
+        <input type="url" class="epopup" placeholder="Wheel image URL…" value="${esc(e.imageUrl)}" data-img="${i}" style="width:82px;flex:none"/>
+        <button class="upbtn" data-uimg="${i}" style="font-size:.65rem;padding:3px 6px;flex-shrink:0">⬆</button>
+        <input type="number" class="eweight" min="0" max="9999" value="${e.prob}" data-wi="${i}" title="Chance (higher = more likely)"/>
+        <span class="epct">${pct}%</span>
       </div>
-      <div style="display:flex;gap:4px;align-items:center">
-        <input type="url" class="epopup" placeholder="Popup image URL…" value="${esc(e.popupImageUrl)}" data-pi="${i}" style="flex:1;margin:0"/>
-        <button class="upbtn" data-upi="${i}" style="font-size:.68rem;padding:3px 7px">⬆</button>
+      <div class="epopup-section">
+        <div class="epopup-hdr">Popup</div>
+        <div class="epopup-row">
+          <span class="epopup-lbl">Title</span>
+          <input class="epopup" data-ptitle="${i}" placeholder="${esc(cfg.popupTitle || 'Winner')}" value="${esc(e.popupTitle)}"/>
+        </div>
+        <div class="epopup-row">
+          <span class="epopup-lbl">Image</span>
+          <input type="url" class="epopup" data-pi="${i}" placeholder="URL…" value="${esc(e.popupImageUrl)}"/>
+          <button class="upbtn" data-upi="${i}" style="font-size:.65rem;padding:3px 6px;flex-shrink:0">⬆</button>
+        </div>
+        <div class="epopup-row">
+          <span class="epopup-lbl">Text</span>
+          <input class="epopup" data-ptext="${i}" placeholder="Congratulations!" value="${esc(e.popupText)}"/>
+        </div>
+        <div class="epopup-row">
+          <span class="epopup-lbl">Button</span>
+          <input class="epopup" data-pbtn="${i}" placeholder="${esc(cfg.popupBtnText || 'Awesome!')}" value="${esc(e.popupBtnText)}"/>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1343,7 +1376,7 @@ function addEntry() {
   const label    = document.getElementById('cfgEntryLabel').value.trim();
   const imageUrl = document.getElementById('cfgEntryImage').value.trim();
   if (!label && !imageUrl) return;
-  const entry = { label, imageUrl, popupImageUrl: '', prob: 1 };
+  const entry = { label, imageUrl, popupImageUrl: '', popupTitle: '', popupText: '', popupBtnText: '', prob: 1 };
   cfg.entries.push(entry);
   document.getElementById('cfgEntryLabel').value = '';
   document.getElementById('cfgEntryImage').value = '';
@@ -1386,11 +1419,29 @@ document.getElementById('cfgEntryList').addEventListener('input', e => {
     preloadPrizeImages(); drawWheel(); schedSave();
     return;
   }
-  // Popup image URL edit
+  // Popup image URL
   if (e.target.dataset.pi !== undefined) {
     const i = Number(e.target.dataset.pi);
     cfg.entries[i] = { ...normEntry(cfg.entries[i]), popupImageUrl: e.target.value.trim() };
-    schedSave();
+    schedSave(); return;
+  }
+  // Popup title
+  if (e.target.dataset.ptitle !== undefined) {
+    const i = Number(e.target.dataset.ptitle);
+    cfg.entries[i] = { ...normEntry(cfg.entries[i]), popupTitle: e.target.value };
+    schedSave(); return;
+  }
+  // Popup body text
+  if (e.target.dataset.ptext !== undefined) {
+    const i = Number(e.target.dataset.ptext);
+    cfg.entries[i] = { ...normEntry(cfg.entries[i]), popupText: e.target.value };
+    schedSave(); return;
+  }
+  // Popup button text
+  if (e.target.dataset.pbtn !== undefined) {
+    const i = Number(e.target.dataset.pbtn);
+    cfg.entries[i] = { ...normEntry(cfg.entries[i]), popupBtnText: e.target.value };
+    schedSave(); return;
   }
 });
 
