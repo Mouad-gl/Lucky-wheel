@@ -729,71 +729,59 @@ function drawWheel(r) {
   }
 
   const arc = Math.PI*2/n;
-  for (let i=0; i<n; i++) {
-    const sa = rot + i*arc - Math.PI/2;
-    drawJaggedSeg(cx, cy, radius, sa, sa+arc, i%2===0 ? cfg.color1 : cfg.color2);
-  }
 
   // Outer ring
   ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2);
   ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=3; ctx.stroke();
 
-  if (cfg.showLabels) {
-    const fs = n>12 ? 9 : n>8 ? 11 : 13;
-    const textColor = i => cfg.color1.toLowerCase()===cfg.color2.toLowerCase() ? '#fff'
-      : i%2===0 ? cfg.color2 : cfg.color1;
+  // Prize labels / images
+  const fs = n>12 ? 9 : n>8 ? 11 : 13;
+  cfg.entries.forEach((rawEntry, i) => {
+    const entry   = normEntry(rawEntry);
+    const mid     = rot + i*arc - Math.PI/2 + arc/2;
+    const labelR  = radius * 0.60;
+    const imgSize = Math.min(radius * 0.28, labelR * arc * 0.72);
+    const lx      = cx + labelR * Math.cos(mid);
+    const ly      = cy + labelR * Math.sin(mid);
 
-    cfg.entries.forEach((rawEntry, i) => {
-      const entry   = normEntry(rawEntry);
-      const mid     = rot + i*arc - Math.PI/2 + arc/2;
-      const labelR  = radius * 0.60;
-      const imgSize = Math.min(radius * 0.28, labelR * arc * 0.72);
-      const lx      = cx + labelR * Math.cos(mid);
-      const ly      = cy + labelR * Math.sin(mid);
+    const img = entry.imageUrl && prizeImgCache[entry.imageUrl];
+    const imgReady = img && img.complete && img.naturalWidth > 0;
 
-      const img = entry.imageUrl && prizeImgCache[entry.imageUrl];
-      const imgReady = img && img.complete && img.naturalWidth > 0;
+    if (imgReady) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(lx, ly, imgSize/2, 0, Math.PI*2);
+      ctx.clip();
+      ctx.drawImage(img, lx - imgSize/2, ly - imgSize/2, imgSize, imgSize);
+      ctx.restore();
 
-      if (imgReady) {
-        // Draw circular clipped image
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(lx, ly, imgSize/2, 0, Math.PI*2);
-        ctx.clip();
-        ctx.drawImage(img, lx - imgSize/2, ly - imgSize/2, imgSize, imgSize);
-        ctx.restore();
-
-        // Label below image (if set)
-        if (entry.label) {
-          ctx.save();
-          ctx.translate(lx, ly);
-          ctx.rotate(mid + Math.PI/2);
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          ctx.font = `bold ${Math.max(8,fs-1)}px Segoe UI,sans-serif`;
-          ctx.fillStyle = textColor(i);
-          ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 4;
-          ctx.fillText(entry.label.slice(0,12), 0, imgSize/2 + 3);
-          ctx.restore();
-        }
-      } else {
-        // Text only
+      if (entry.label) {
         ctx.save();
         ctx.translate(lx, ly);
         ctx.rotate(mid + Math.PI/2);
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = `bold ${fs}px Segoe UI,sans-serif`;
-        ctx.fillStyle = textColor(i);
-        ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 5;
-        let txt = entry.label;
-        const maxW = radius*0.42;
-        while (ctx.measureText(txt).width > maxW && txt.length > 1) txt = txt.slice(0,-1);
-        if (txt !== entry.label) txt = txt.slice(0,-1) + '…';
-        ctx.fillText(txt, 0, 0);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.font = `bold ${Math.max(8,fs-1)}px Segoe UI,sans-serif`;
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 4;
+        ctx.fillText(entry.label.slice(0,12), 0, imgSize/2 + 3);
         ctx.restore();
       }
-    });
-  }
+    } else {
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.rotate(mid + Math.PI/2);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `bold ${fs}px Segoe UI,sans-serif`;
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 5;
+      let txt = entry.label;
+      const maxW = radius*0.42;
+      while (ctx.measureText(txt).width > maxW && txt.length > 1) txt = txt.slice(0,-1);
+      if (txt !== entry.label) txt = txt.slice(0,-1) + '…';
+      ctx.fillText(txt, 0, 0);
+      ctx.restore();
+    }
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
