@@ -13,9 +13,15 @@ create table if not exists wheel_config (
   app_store_url     text,
   google_play_label text default 'Get it on',
   google_play_url   text,
+  wheel_bg_color    text    default '#111111',
+  wheel_bg_url      text,
   entries     jsonb   default '["Prize 1","Prize 2","Prize 3","Prize 4","Prize 5","Prize 6","Prize 7","Prize 8"]',
   updated_at  timestamptz default now()
 );
+
+-- If the table already exists, add the new columns:
+alter table wheel_config add column if not exists wheel_bg_color text default '#111111';
+alter table wheel_config add column if not exists wheel_bg_url   text;
 
 -- Seed the single config row
 insert into wheel_config (id) values (1) on conflict (id) do nothing;

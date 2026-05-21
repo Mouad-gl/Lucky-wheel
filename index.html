@@ -361,6 +361,13 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
     </div>
 
     <div class="psec">
+      <h3>Wheel Background</h3>
+      <div class="prow"><label>Background color</label><input type="color" class="pcolor" id="cfgWheelBgColor"/></div>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Background image URL <span style="color:#444">(shows behind segments)</span></div>
+      <input type="url" class="pinput" id="cfgWheelBgUrl" placeholder="https://…/texture.jpg"/>
+    </div>
+
+    <div class="psec">
       <h3>Prizes</h3>
       <div class="elist" id="cfgEntryList"></div>
       <div class="eadd-row">
@@ -432,10 +439,11 @@ async function sbSave(key, data) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════════════════════════
-const LS_KEY = 'lwCfg_v3';
+const LS_KEY = 'lwCfg_v4';
 const DEFAULTS = {
   brand: 'LUCKY WHEEL', logoUrl: '', bgUrl: '',
   color1: '#00E676', color2: '#000000',
+  wheelBgColor: '#111111', wheelBgUrl: '',
   showLabels: true, showStore: true,
   appStoreSub: 'Download on the', appStoreUrl: '',
   googlePlaySub: 'Get it on', googlePlayUrl: '',
@@ -478,6 +486,7 @@ function cfgToRow(c) {
   return {
     brand_name: c.brand, logo_url: c.logoUrl || null, bg_url: c.bgUrl || null,
     color1: c.color1, color2: c.color2,
+    wheel_bg_color: c.wheelBgColor, wheel_bg_url: c.wheelBgUrl || null,
     show_labels: c.showLabels, show_store: c.showStore,
     app_store_label: c.appStoreSub, app_store_url: c.appStoreUrl || null,
     google_play_label: c.googlePlaySub, google_play_url: c.googlePlayUrl || null,
@@ -493,6 +502,8 @@ function rowToCfg(r) {
     bgUrl: r.bg_url || '',
     color1: r.color1 || DEFAULTS.color1,
     color2: r.color2 || DEFAULTS.color2,
+    wheelBgColor: r.wheel_bg_color || DEFAULTS.wheelBgColor,
+    wheelBgUrl: r.wheel_bg_url || '',
     showLabels: r.show_labels ?? true,
     showStore: r.show_store ?? true,
     appStoreSub: r.app_store_label || DEFAULTS.appStoreSub,
@@ -527,6 +538,20 @@ async function loadFromSupabase() {
 const canvas = document.getElementById('wheelCanvas');
 const ctx    = canvas.getContext('2d');
 let WS = 360, rot = 0, spinning = false;
+
+// Wheel background image cache
+let wheelBgImg = new Image();
+wheelBgImg.crossOrigin = 'anonymous';
+wheelBgImg.onload = () => drawWheel();
+
+function loadWheelBgImg(url) {
+  if (!url) { wheelBgImg = new Image(); drawWheel(); return; }
+  if (wheelBgImg.src === url) return;
+  wheelBgImg = new Image();
+  wheelBgImg.crossOrigin = 'anonymous';
+  wheelBgImg.onload = () => drawWheel();
+  wheelBgImg.src = url;
+}
 
 function setSize() {
   WS = Math.min(window.innerWidth - 32, 460);
@@ -569,10 +594,21 @@ function drawWheel(r) {
   const cx = WS/2, cy = WS/2, radius = cx - 4;
   ctx.clearRect(0, 0, WS, WS);
 
+  // ── Wheel disc background (clipped to circle) ──
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI*2); ctx.clip();
+  ctx.fillStyle = cfg.wheelBgColor || '#111';
+  ctx.fillRect(0, 0, WS, WS);
+  if (cfg.wheelBgUrl && wheelBgImg.complete && wheelBgImg.naturalWidth > 0) {
+    const iw = wheelBgImg.naturalWidth, ih = wheelBgImg.naturalHeight;
+    const scale = Math.max(radius*2/iw, radius*2/ih);
+    const dw = iw*scale, dh = ih*scale;
+    ctx.drawImage(wheelBgImg, cx - dw/2, cy - dh/2, dw, dh);
+  }
+  ctx.restore();
+
   if (!n) {
-    ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2);
-    ctx.fillStyle='rgba(255,255,255,0.03)'; ctx.fill();
-    ctx.fillStyle='#444'; ctx.font='14px Segoe UI,sans-serif';
+    ctx.fillStyle='#555'; ctx.font='14px Segoe UI,sans-serif';
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('Add prizes to start', cx, cy);
     return;
@@ -693,6 +729,11 @@ function applyConfig() {
   document.getElementById('cfgColor2').value = cfg.color2;
   document.getElementById('cfgShowLabels').checked = cfg.showLabels;
 
+  // Wheel background
+  document.getElementById('cfgWheelBgColor').value = cfg.wheelBgColor || '#111111';
+  document.getElementById('cfgWheelBgUrl').value   = cfg.wheelBgUrl  || '';
+  loadWheelBgImg(cfg.wheelBgUrl);
+
   // Logo
   const logoWrap = document.getElementById('logoWrap');
   document.getElementById('cfgLogoUrl').value = cfg.logoUrl || '';
@@ -783,6 +824,15 @@ document.getElementById('cfgColor2').addEventListener('input', e => {
 });
 document.getElementById('cfgShowLabels').addEventListener('change', e => {
   cfg.showLabels = e.target.checked; drawWheel(); schedSave();
+});
+
+// Wheel background
+document.getElementById('cfgWheelBgColor').addEventListener('input', e => {
+  cfg.wheelBgColor = e.target.value; drawWheel(); schedSave();
+});
+document.getElementById('cfgWheelBgUrl').addEventListener('input', e => {
+  cfg.wheelBgUrl = e.target.value.trim();
+  loadWheelBgImg(cfg.wheelBgUrl); schedSave();
 });
 
 // Logo URL
