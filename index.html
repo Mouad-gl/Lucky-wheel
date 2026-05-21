@@ -399,11 +399,13 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
     </div>
 
 
-<div class="psec">
+    <div class="psec">
       <h3>Wheel Background</h3>
       <div class="prow"><label>Background color</label><input type="color" class="pcolor" id="cfgWheelBgColor"/></div>
-      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Background image URL <span style="color:#444">(shows behind segments)</span></div>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Background image URL</div>
       <input type="url" class="pinput" id="cfgWheelBgUrl" placeholder="https://…/texture.jpg"/>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Alignment offset <span id="cfgWheelBgOffsetVal" style="color:#888">0°</span></div>
+      <input type="range" id="cfgWheelBgOffset" min="-180" max="180" step="1" value="0" style="width:100%;accent-color:var(--primary);margin-bottom:6px"/>
     </div>
 
     <div class="psec">
@@ -528,7 +530,7 @@ const LS_KEY = 'lwCfg_v5';
 const DEFAULTS = {
   brand: 'LUCKY WHEEL', logoUrl: '', bgUrl: '',
   color1: '#00E676', color2: '#000000',
-  wheelBgColor: '#111111', wheelBgUrl: '',
+  wheelBgColor: '#111111', wheelBgUrl: '', wheelBgOffset: 0,
   showLabels: true, showStore: true,
   spinSpeed: 3, spinBtnUrl: '',
   appStoreSub: 'Download on the', appStoreUrl: '',
@@ -683,13 +685,30 @@ function loadWheelBgImg(url) {
 
 // Prize image cache
 const prizeImgCache = {};
+
+function removeWhiteBg(img) {
+  try {
+    const oc = document.createElement('canvas');
+    oc.width = img.naturalWidth; oc.height = img.naturalHeight;
+    const c = oc.getContext('2d');
+    c.drawImage(img, 0, 0);
+    const data = c.getImageData(0, 0, oc.width, oc.height);
+    const d = data.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i] > 235 && d[i+1] > 235 && d[i+2] > 235) d[i+3] = 0;
+    }
+    c.putImageData(data, 0, 0);
+    return oc;
+  } catch { return img; }
+}
+
 function preloadPrizeImages() {
   cfg.entries.forEach(e => {
     const url = normEntry(e).imageUrl;
     if (!url || prizeImgCache[url]) return;
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => drawWheel();
+    img.onload = () => { prizeImgCache[url] = removeWhiteBg(img); drawWheel(); };
     img.src = url;
     prizeImgCache[url] = img;
   });
@@ -746,7 +765,7 @@ function drawWheel(r) {
     const scale = Math.max(radius*2/iw, radius*2/ih);
     const dw = iw*scale, dh = ih*scale;
     ctx.translate(cx, cy);
-    ctx.rotate(rot);
+    ctx.rotate(rot + (cfg.wheelBgOffset || 0) * Math.PI / 180);
     ctx.drawImage(wheelBgImg, -dw/2, -dh/2, dw, dh);
   }
   ctx.restore();
@@ -941,6 +960,8 @@ function applyConfig() {
   // Wheel background
   document.getElementById('cfgWheelBgColor').value = cfg.wheelBgColor || '#111111';
   document.getElementById('cfgWheelBgUrl').value   = cfg.wheelBgUrl  || '';
+  document.getElementById('cfgWheelBgOffset').value = cfg.wheelBgOffset ?? 0;
+  document.getElementById('cfgWheelBgOffsetVal').textContent = (cfg.wheelBgOffset ?? 0) + '°';
   loadWheelBgImg(cfg.wheelBgUrl);
 
   // Logo
@@ -1055,6 +1076,11 @@ document.getElementById('cfgWheelBgColor').addEventListener('input', e => {
 document.getElementById('cfgWheelBgUrl').addEventListener('input', e => {
   cfg.wheelBgUrl = e.target.value.trim();
   loadWheelBgImg(cfg.wheelBgUrl); schedSave();
+});
+document.getElementById('cfgWheelBgOffset').addEventListener('input', e => {
+  cfg.wheelBgOffset = Number(e.target.value);
+  document.getElementById('cfgWheelBgOffsetVal').textContent = cfg.wheelBgOffset + '°';
+  drawWheel(); schedSave();
 });
 
 // Logo URL
