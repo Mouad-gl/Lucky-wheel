@@ -204,9 +204,27 @@ body{
 #closePanelBtn:hover{color:#fff}
 
 #panelBody{
-  flex:1;overflow-y:auto;padding:16px 20px 32px;
+  flex:1;overflow-y:auto;padding:16px 20px 16px;
   scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent;
 }
+
+/* ── Panel save footer ── */
+#panelFoot{
+  flex-shrink:0;padding:14px 20px;
+  border-top:1px solid rgba(255,255,255,.07);
+  background:rgba(6,6,6,.97);
+}
+#saveBtn{
+  width:100%;padding:12px;
+  background:var(--primary);color:#000;
+  border:none;border-radius:10px;
+  font-size:.9rem;font-weight:800;letter-spacing:.06em;
+  cursor:pointer;transition:opacity .15s,transform .1s;
+}
+#saveBtn:hover{opacity:.88;transform:translateY(-1px)}
+#saveBtn:active{transform:translateY(0)}
+#saveBtn:disabled{opacity:.4;cursor:not-allowed}
+#saveBtnStatus{font-size:.72rem;text-align:center;margin-top:7px;min-height:14px;color:#555}
 #panelBody::-webkit-scrollbar{width:4px}
 #panelBody::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
 
@@ -496,6 +514,10 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
       <input type="url" class="pinput" id="cfgGooglePlayUrl" placeholder="https://play.google.com/…"/>
     </div>
 
+  </div>
+  <div id="panelFoot">
+    <button id="saveBtn">💾 Save Settings</button>
+    <div id="saveBtnStatus"></div>
   </div>
 </div>
 
@@ -1109,6 +1131,32 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
   setTimeout(() => document.getElementById('pwInput').focus(), 80);
 });
 document.getElementById('closePanelBtn').addEventListener('click', () => document.getElementById('settingsPanel').classList.remove('open'));
+
+// Save button — immediately persists cfg to localStorage + Supabase
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('saveBtn');
+  const status = document.getElementById('saveBtnStatus');
+  btn.disabled = true;
+  status.style.color = '#888';
+  status.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  localStorage.setItem(LS_KEY, JSON.stringify(cfg));
+  try {
+    await sbSave(cfgToRow(cfg));
+    setSyncDot('ok');
+    status.style.color = 'var(--primary)';
+    status.textContent = 'Saved ✓';
+    setTimeout(() => setSyncDot('idle'), 2000);
+  } catch(e) {
+    setSyncDot('err');
+    status.style.color = '#ff5555';
+    status.textContent = 'Save failed: ' + (e.message || 'check console');
+    console.error('Save failed:', e);
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { if(status.textContent !== '') status.textContent = ''; }, 3500);
+  }
+});
 
 function checkPw() {
   const val = document.getElementById('pwInput').value;
