@@ -235,6 +235,14 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 .epct{font-size:.72rem;color:#555;flex-shrink:0;width:34px;text-align:right}
 .edel{background:none;border:none;color:rgba(255,80,80,.5);cursor:pointer;font-size:.85rem;padding:2px 6px;border-radius:4px;transition:color .15s,background .15s;line-height:1}
 .edel:hover{color:#ff5555;background:rgba(255,85,85,.12)}
+.epopup{
+  width:100%;padding:3px 8px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);
+  border-radius:5px;color:#777;font-size:.72rem;outline:none;
+  transition:border-color .2s,color .2s;
+}
+.epopup:focus{border-color:var(--primary);color:#fff}
+.epopup::placeholder{color:#333}
 .eadd-row{display:flex;gap:8px}
 .eadd-row input{flex:1;padding:9px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:8px;color:#fff;font-size:.83rem;outline:none;transition:border-color .2s}
 .eadd-row input:focus{border-color:var(--primary)}
@@ -527,8 +535,8 @@ const DEFAULTS = {
 
 // Normalise an entry — backward compat with old string/weight formats
 function normEntry(e) {
-  if (typeof e === 'string') return { label: e, imageUrl: '', prob: 1 };
-  return { label: e.label || '', imageUrl: e.imageUrl || '', prob: Math.max(0, Number(e.prob ?? e.weight) || 1) };
+  if (typeof e === 'string') return { label: e, imageUrl: '', popupImageUrl: '', prob: 1 };
+  return { label: e.label || '', imageUrl: e.imageUrl || '', popupImageUrl: e.popupImageUrl || '', prob: Math.max(0, Number(e.prob ?? e.weight) || 1) };
 }
 
 // Pick a winner index using probability weights
@@ -869,10 +877,10 @@ function showResult() {
   const ov = document.getElementById('overlay');
   document.getElementById('resultText').textContent = winner.label;
 
-  // Show winner image in overlay if available
   const imgEl = document.getElementById('resultImg');
-  if (winner.imageUrl) {
-    imgEl.src = winner.imageUrl;
+  const popupSrc = winner.popupImageUrl || winner.imageUrl;
+  if (popupSrc) {
+    imgEl.src = popupSrc;
     imgEl.style.display = 'block';
   } else {
     imgEl.style.display = 'none';
@@ -984,12 +992,15 @@ function renderEntryList() {
       ? `<img src="${esc(e.imageUrl)}" class="entry-thumb" onerror="this.style.opacity='.2'" alt=""/>`
       : '';
     const pct = Math.round(e.prob / total * 100);
-    return `<div class="eitem">
-      ${thumb}
-      <span class="elbl">${esc(e.label || '(no label)')}</span>
-      <input type="number" class="eweight" min="0" max="9999" value="${e.prob}" data-wi="${i}" title="Chance (higher = more likely to win)"/>
-      <span class="epct">${pct}%</span>
-      <button class="edel" data-i="${i}">✕</button>
+    return `<div class="eitem" style="flex-direction:column;align-items:stretch;gap:5px">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${thumb}
+        <span class="elbl">${esc(e.label || '(no label)')}</span>
+        <input type="number" class="eweight" min="0" max="9999" value="${e.prob}" data-wi="${i}" title="Chance (higher = more likely to win)"/>
+        <span class="epct">${pct}%</span>
+        <button class="edel" data-i="${i}">✕</button>
+      </div>
+      <input type="url" class="epopup" placeholder="Popup image URL…" value="${esc(e.popupImageUrl)}" data-pi="${i}"/>
     </div>`;
   }).join('');
 }
@@ -1099,7 +1110,7 @@ function addEntry() {
   const label    = document.getElementById('cfgEntryLabel').value.trim();
   const imageUrl = document.getElementById('cfgEntryImage').value.trim();
   if (!label && !imageUrl) return;
-  const entry = { label, imageUrl, prob: 1 };
+  const entry = { label, imageUrl, popupImageUrl: '', prob: 1 };
   cfg.entries.push(entry);
   document.getElementById('cfgEntryLabel').value = '';
   document.getElementById('cfgEntryImage').value = '';
@@ -1116,15 +1127,24 @@ document.getElementById('cfgEntryList').addEventListener('click', e => {
   renderEntryList(); drawWheel(); schedSave();
 });
 document.getElementById('cfgEntryList').addEventListener('input', e => {
-  const inp = e.target.closest('.eweight'); if (!inp) return;
-  const i = Number(inp.dataset.wi);
-  cfg.entries[i] = { ...normEntry(cfg.entries[i]), prob: Math.max(0, Number(inp.value) || 0) };
-  const entries = cfg.entries.map(normEntry);
-  const total   = entries.reduce((s, en) => s + en.prob, 0) || 1;
-  document.querySelectorAll('#cfgEntryList .epct').forEach((el, j) => {
-    el.textContent = Math.round(entries[j].prob / total * 100) + '%';
-  });
-  schedSave();
+  const inp = e.target.closest('.eweight');
+  if (inp) {
+    const i = Number(inp.dataset.wi);
+    cfg.entries[i] = { ...normEntry(cfg.entries[i]), prob: Math.max(0, Number(inp.value) || 0) };
+    const entries = cfg.entries.map(normEntry);
+    const total   = entries.reduce((s, en) => s + en.prob, 0) || 1;
+    document.querySelectorAll('#cfgEntryList .epct').forEach((el, j) => {
+      el.textContent = Math.round(entries[j].prob / total * 100) + '%';
+    });
+    schedSave();
+    return;
+  }
+  const pop = e.target.closest('.epopup');
+  if (pop) {
+    const i = Number(pop.dataset.pi);
+    cfg.entries[i] = { ...normEntry(cfg.entries[i]), popupImageUrl: pop.value.trim() };
+    schedSave();
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
