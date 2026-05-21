@@ -442,14 +442,25 @@ const SB_TABLE = 'wheel_config';
 
 function sbHeaders() {
   const k = getSbAnon();
-  return { 'Content-Type': 'application/json', 'apikey': k, 'Authorization': `Bearer ${k}` };
+  return {
+    'apikey': k,
+    'Authorization': `Bearer ${k}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Accept-Profile': 'public',
+    'Content-Profile': 'public',
+  };
 }
 
 async function sbFetch() {
   const res = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}?id=eq.1&limit=1`, {
-    headers: { ...sbHeaders(), 'Accept': 'application/json' }
+    headers: sbHeaders()
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg += ': ' + (j.message || j.error || JSON.stringify(j)); } catch {}
+    throw new Error(msg);
+  }
   const rows = await res.json();
   return rows[0] || null;
 }
