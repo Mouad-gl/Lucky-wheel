@@ -330,37 +330,127 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 /* ── Overlay ── */
 #overlay{
   position:fixed;inset:0;
-  background:rgba(0,0,0,.8);backdrop-filter:blur(8px);
+  background:rgba(0,0,0,.88);backdrop-filter:blur(5px);
   display:flex;align-items:center;justify-content:center;
   z-index:100;opacity:0;pointer-events:none;
-  transition:opacity .3s;
+  transition:opacity .35s;
 }
 #overlay.show{opacity:1;pointer-events:all}
+
+/* Rectangular HUD-style card */
 .rcard{
-  background:linear-gradient(145deg,#080f08,#0a2414);
-  border:1.5px solid rgba(0,230,118,.3);border-radius:22px;
-  padding:40px 48px;text-align:center;
-  box-shadow:0 24px 70px rgba(0,0,0,.85),0 0 50px rgba(0,230,118,.1);
-  max-width:340px;width:90%;
-  transform:scale(.82) translateY(20px);
-  transition:transform .4s var(--ease-spring),opacity .3s;
+  position:relative;
+  width:min(92vw,680px);
+  aspect-ratio:16/9;
+  max-height:82vh;
+  overflow:hidden;
+  background:#0b1219;
+  transform:scale(.94);
+  transition:transform .35s var(--ease-spring),opacity .3s;
   opacity:0;
 }
-#overlay.show .rcard{transform:scale(1) translateY(0);opacity:1}
-.rtrophy{font-size:2.6rem;margin-bottom:12px;animation:pulse 1s ease infinite alternate}
-@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.12)}}
-.rlbl{font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:.14em;margin-bottom:8px}
+#overlay.show .rcard{transform:scale(1);opacity:1}
+
+/* Full-bleed prize image layer */
+#resultImgBg{
+  position:absolute;inset:0;
+  background:center/cover no-repeat;
+  display:none;
+}
+/* Dark gradient overlay so text is always readable */
+.rcard-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to bottom,
+    rgba(5,9,14,.35) 0%,
+    rgba(5,9,14,.08) 45%,
+    rgba(5,9,14,.7)  80%,
+    rgba(5,9,14,.92) 100%);
+}
+
+/* L-shaped corner brackets */
+.rc{
+  position:absolute;width:16px;height:16px;
+  border-color:rgba(190,205,220,.45);border-style:solid;
+  pointer-events:none;z-index:2;
+}
+.rc-tl{top:10px;left:10px;border-width:1.5px 0 0 1.5px}
+.rc-tr{top:10px;right:10px;border-width:1.5px 1.5px 0 0}
+.rc-bl{bottom:10px;left:10px;border-width:0 0 1.5px 1.5px}
+.rc-br{bottom:10px;right:10px;border-width:0 1.5px 1.5px 0}
+
+/* Top label bar */
+.rcard-top{
+  position:absolute;top:0;left:0;right:0;z-index:2;
+  padding:9px 18px;
+  background:rgba(5,9,14,.6);
+  border-bottom:1px solid rgba(255,255,255,.05);
+  display:flex;align-items:center;justify-content:center;
+}
+.rlbl{
+  font-size:.6rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.18em;color:rgba(190,205,220,.55);
+}
+
+/* Winner name – centered vertically */
 .rwinner{
-  font-size:clamp(1.3rem,5vw,2rem);font-weight:900;
-  color:var(--primary);text-shadow:0 0 24px rgba(0,230,118,.4);
-  margin-bottom:28px;word-break:break-word;line-height:1.2;
+  position:absolute;left:0;right:0;
+  top:50%;transform:translateY(-60%);z-index:2;
+  text-align:center;
+  font-size:clamp(1.1rem,4.5vw,1.9rem);font-weight:900;
+  color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.9);
+  letter-spacing:.04em;padding:0 24px;
+  word-break:break-word;
 }
+
+/* Per-popup body text */
+#popupTextEl{
+  position:absolute;left:0;right:0;z-index:2;
+  top:calc(50% + 1.6em);
+  text-align:center;
+  font-size:clamp(.72rem,2vw,.85rem);color:rgba(255,255,255,.55);
+  padding:0 28px;line-height:1.4;
+}
+
+/* Bottom HUD strip */
+.rcard-bot{
+  position:absolute;bottom:0;left:0;right:0;z-index:2;
+  padding:6px 14px 10px;
+}
+.rbot-main-row{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:5px;
+}
+.rbot-label{
+  font-size:clamp(.6rem,1.8vw,.72rem);
+  color:rgba(190,205,220,.65);letter-spacing:.05em;
+}
+.rbot-label .rarrow{color:rgba(190,205,220,.35)}
+.rbar-row{display:flex;align-items:center;gap:8px}
+.rbar-segs{flex:1;display:flex;gap:2px;height:5px}
+.rbar-seg{
+  flex:1;height:100%;
+  background:rgba(190,205,220,.13);
+  transition:background .08s;
+}
+.rbar-seg.filled{background:rgba(190,205,220,.62)}
+.rbar-pct{
+  font-size:.6rem;color:rgba(190,205,220,.5);
+  font-family:monospace;white-space:nowrap;flex-shrink:0;min-width:36px;text-align:right;
+}
+
+/* Claim button */
 .rclose{
-  padding:13px 40px;background:var(--primary);color:#000;
-  border:none;border-radius:50px;font-size:.95rem;font-weight:700;cursor:pointer;
-  transition:transform .2s var(--ease-spring),box-shadow .2s;
+  padding:5px 13px;
+  background:transparent;
+  color:rgba(190,205,220,.7);
+  border:1px solid rgba(190,205,220,.28);
+  border-radius:0;
+  font-size:.62rem;font-weight:700;letter-spacing:.12em;
+  cursor:pointer;text-transform:uppercase;
+  transition:background .2s,color .15s,border-color .15s;
+  flex-shrink:0;
 }
-.rclose:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 6px 24px rgba(0,230,118,.45)}
+.rclose:hover{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.55)}
 
 /* Confetti canvas */
 #confettiCanvas{position:fixed;inset:0;pointer-events:none;z-index:99}
@@ -545,12 +635,33 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 <!-- Result overlay -->
 <div id="overlay">
   <div class="rcard" id="resultCard">
-    <div class="rtrophy">🏆</div>
-    <img id="resultImg" src="" alt="" style="display:none;width:96px;height:96px;object-fit:cover;border-radius:12px;margin:0 auto 12px;box-shadow:0 4px 20px rgba(0,0,0,.6)"/>
-    <div class="rlbl" id="popupTitleEl">Winner</div>
+    <!-- Background image layer -->
+    <div id="resultImgBg"></div>
+    <div class="rcard-overlay"></div>
+    <!-- Corner brackets -->
+    <span class="rc rc-tl"></span><span class="rc rc-tr"></span>
+    <span class="rc rc-bl"></span><span class="rc rc-br"></span>
+    <!-- Top label -->
+    <div class="rcard-top">
+      <span class="rlbl" id="popupTitleEl">WINNER</span>
+    </div>
+    <!-- Winner name (center) -->
     <div class="rwinner" id="resultText"></div>
-    <div id="popupTextEl" style="font-size:.85rem;color:#bbb;margin:-10px 0 18px;line-height:1.5;display:none"></div>
-    <button class="rclose" id="resultClose">Awesome!</button>
+    <!-- Per-prize body text -->
+    <div id="popupTextEl"></div>
+    <!-- Bottom HUD -->
+    <div class="rcard-bot">
+      <div class="rbot-main-row">
+        <span class="rbot-label"><span class="rarrow">&gt;&gt;</span> <span id="rDecodeLabel"></span></span>
+        <button class="rclose" id="resultClose">[ CLAIM ]</button>
+      </div>
+      <div class="rbar-row">
+        <div class="rbar-segs" id="rbarSegs"></div>
+        <span class="rbar-pct" id="rbarPct">[0%]</span>
+      </div>
+    </div>
+    <!-- Hidden img kept for backward-compat -->
+    <img id="resultImg" src="" alt="" style="display:none"/>
   </div>
 </div>
 
@@ -999,25 +1110,53 @@ function showResult() {
   const winner = normEntry(cfg.entries[currentWinner]);
   const ov = document.getElementById('overlay');
 
-  document.getElementById('resultText').textContent    = winner.label;
-  document.getElementById('popupTitleEl').textContent  = winner.popupTitle  || cfg.popupTitle  || 'Winner';
-  document.getElementById('resultClose').textContent   = winner.popupBtnText || cfg.popupBtnText || 'Awesome!';
+  // Text fields
+  document.getElementById('resultText').textContent   = winner.label;
+  document.getElementById('rDecodeLabel').textContent = winner.label;
+  document.getElementById('popupTitleEl').textContent =
+    (winner.popupTitle || cfg.popupTitle || 'WINNER').toUpperCase();
+  const btnLabel = winner.popupBtnText || cfg.popupBtnText || 'CLAIM';
+  document.getElementById('resultClose').textContent  = '[ ' + btnLabel.toUpperCase() + ' ]';
 
   const textEl = document.getElementById('popupTextEl');
-  if (winner.popupText) {
-    textEl.textContent = winner.popupText;
-    textEl.style.display = 'block';
-  } else {
-    textEl.style.display = 'none';
-  }
+  textEl.textContent = winner.popupText || '';
+  textEl.style.display = winner.popupText ? 'block' : 'none';
 
-  const imgEl = document.getElementById('resultImg');
-  const popupSrc = winner.popupImageUrl || winner.imageUrl;
-  if (popupSrc) { imgEl.src = popupSrc; imgEl.style.display = 'block'; }
-  else           { imgEl.style.display = 'none'; }
+  // Background image: per-prize > global popup bg > none
+  const imgBg  = document.getElementById('resultImgBg');
+  const prizeSrc = winner.popupImageUrl || winner.imageUrl;
+  if (prizeSrc) {
+    imgBg.style.backgroundImage = `url(${prizeSrc})`;
+    imgBg.style.display = 'block';
+  } else if (cfg.popupBgUrl) {
+    imgBg.style.backgroundImage = `url(${cfg.popupBgUrl})`;
+    imgBg.style.display = 'block';
+  } else {
+    imgBg.style.backgroundImage = '';
+    imgBg.style.display = 'none';
+  }
 
   ov.classList.add('show');
   launchConfetti();
+
+  // Animate progress bar segments
+  const segs   = document.getElementById('rbarSegs');
+  const pctEl  = document.getElementById('rbarPct');
+  const N = 26;
+  segs.innerHTML = Array.from({length:N}, () => '<div class="rbar-seg"></div>').join('');
+  const segEls = segs.querySelectorAll('.rbar-seg');
+  pctEl.textContent = '[0%]';
+  let filled = 0;
+  clearInterval(barIv);
+  barIv = setInterval(() => {
+    if (filled < N) {
+      segEls[filled].classList.add('filled');
+      filled++;
+      pctEl.textContent = '[' + Math.round(filled / N * 100) + '%]';
+    } else {
+      clearInterval(barIv);
+    }
+  }, 80); // 26 × 80ms ≈ 2.1 s
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1100,17 +1239,17 @@ function applyConfig() {
   document.getElementById('cfgSpinSpeed').value = cfg.spinSpeed || 3;
 
   // Popup
-  document.getElementById('popupTitleEl').textContent    = cfg.popupTitle  || 'Winner';
-  document.getElementById('resultClose').textContent     = cfg.popupBtnText || 'Awesome!';
-  document.getElementById('cfgPopupTitle').value         = cfg.popupTitle  || '';
-  document.getElementById('cfgPopupBtnText').value       = cfg.popupBtnText || '';
-  document.getElementById('cfgPopupBgColor').value       = cfg.popupBgColor || '#0d1a0d';
-  document.getElementById('cfgPopupBgUrl').value         = cfg.popupBgUrl  || '';
-  const rcard = document.getElementById('resultCard');
+  document.getElementById('cfgPopupTitle').value   = cfg.popupTitle   || '';
+  document.getElementById('cfgPopupBtnText').value = cfg.popupBtnText || '';
+  document.getElementById('cfgPopupBgColor').value = cfg.popupBgColor || '#0d1a0d';
+  document.getElementById('cfgPopupBgUrl').value   = cfg.popupBgUrl   || '';
+  document.getElementById('resultCard').style.background = cfg.popupBgColor || '#0b1219';
+  const staticBg = document.getElementById('resultImgBg');
   if (cfg.popupBgUrl) {
-    rcard.style.background = `url(${cfg.popupBgUrl}) center/cover no-repeat`;
+    staticBg.style.backgroundImage = `url(${cfg.popupBgUrl})`;
+    staticBg.style.display = 'block';
   } else {
-    rcard.style.background = cfg.popupBgColor || '';
+    staticBg.style.display = 'none';
   }
 
   // Spin button image
@@ -1185,8 +1324,10 @@ document.getElementById('hub').addEventListener('click', spin);
 
 // Result
 const overlay = document.getElementById('overlay');
-document.getElementById('resultClose').addEventListener('click', () => { overlay.classList.remove('show'); cp=[]; startIdleAnim(); });
-overlay.addEventListener('click', e => { if(e.target===overlay){overlay.classList.remove('show');cp=[];startIdleAnim();} });
+let barIv = null;
+function closeOverlay() { overlay.classList.remove('show'); cp = []; clearInterval(barIv); startIdleAnim(); }
+document.getElementById('resultClose').addEventListener('click', closeOverlay);
+overlay.addEventListener('click', e => { if (e.target === overlay) closeOverlay(); });
 
 // Settings panel — password protected
 const SETTINGS_PW = '9999';
@@ -1320,16 +1461,14 @@ document.getElementById('cfgPopupBtnText').addEventListener('input', e => {
 });
 document.getElementById('cfgPopupBgColor').addEventListener('input', e => {
   cfg.popupBgColor = e.target.value;
-  const rcard = document.getElementById('resultCard');
-  if (!cfg.popupBgUrl) rcard.style.background = cfg.popupBgColor;
+  document.getElementById('resultCard').style.background = cfg.popupBgColor;
   schedSave();
 });
 document.getElementById('cfgPopupBgUrl').addEventListener('input', e => {
   cfg.popupBgUrl = e.target.value.trim();
-  const rcard = document.getElementById('resultCard');
-  rcard.style.background = cfg.popupBgUrl
-    ? `url(${cfg.popupBgUrl}) center/cover no-repeat`
-    : (cfg.popupBgColor || '');
+  const bg = document.getElementById('resultImgBg');
+  if (cfg.popupBgUrl) { bg.style.backgroundImage = `url(${cfg.popupBgUrl})`; bg.style.display = 'block'; }
+  else                { bg.style.display = 'none'; }
   schedSave();
 });
 
