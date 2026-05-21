@@ -330,14 +330,6 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
   <div id="panelBody">
 
     <div class="psec">
-      <h3>Supabase Connection</h3>
-      <div class="note">
-        Paste your <a href="https://supabase.com/dashboard/project/iyzjyxlegljwcbmayhqq/settings/api" target="_blank">anon/public key</a> to enable cloud sync. Config is saved to your <code>wheel_config</code> table.
-      </div>
-      <input type="password" class="pinput" id="cfgAnonKey" placeholder="eyJhbGciOiJIUzI1NiIs…" autocomplete="off"/>
-    </div>
-
-    <div class="psec">
       <h3>Brand</h3>
       <input type="text" class="pinput" id="cfgBrand" placeholder="Brand name"/>
       <div style="font-size:.72rem;color:#555;margin-bottom:4px">Logo image URL</div>
@@ -411,26 +403,27 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE
 // ═══════════════════════════════════════════════════════════════════════════════
-const SB_URL = 'https://iyzjyxlegljwcbmayhqq.supabase.co';
+const SB_URL   = 'https://iyzjyxlegljwcbmayhqq.supabase.co';
+const SB_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5emp5eGxlZ2xqd2NibWF5aHFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNTgzNjgsImV4cCI6MjA5NDkzNDM2OH0.obtxHAT22J9UXSevcfm2tkTU_mj0_QmH8Ehde7LHBaA';
 const SB_TABLE = 'wheel_config';
 
-function sbHeaders(key) {
-  return { 'Content-Type': 'application/json', 'apikey': key, 'Authorization': `Bearer ${key}` };
+function sbHeaders() {
+  return { 'Content-Type': 'application/json', 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` };
 }
 
-async function sbFetch(key) {
+async function sbFetch() {
   const res = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}?id=eq.1&limit=1`, {
-    headers: { ...sbHeaders(key), 'Accept': 'application/json' }
+    headers: { ...sbHeaders(), 'Accept': 'application/json' }
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const rows = await res.json();
   return rows[0] || null;
 }
 
-async function sbSave(key, data) {
+async function sbSave(data) {
   const res = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}?id=eq.1`, {
     method: 'PATCH',
-    headers: sbHeaders(key),
+    headers: sbHeaders(),
     body: JSON.stringify({ ...data, updated_at: new Date().toISOString() })
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -455,7 +448,6 @@ let cfg = (() => {
   catch { return {...DEFAULTS}; }
 })();
 
-let anonKey = localStorage.getItem('lwAnonKey') || '';
 let saveTimer = null;
 
 function setSyncDot(state) { // 'idle'|'syncing'|'ok'|'err'
@@ -467,11 +459,10 @@ function setSyncDot(state) { // 'idle'|'syncing'|'ok'|'err'
 function schedSave() {
   localStorage.setItem(LS_KEY, JSON.stringify(cfg));
   clearTimeout(saveTimer);
-  if (!anonKey) return;
   setSyncDot('syncing');
   saveTimer = setTimeout(async () => {
     try {
-      await sbSave(anonKey, cfgToRow(cfg));
+      await sbSave(cfgToRow(cfg));
       setSyncDot('ok');
       setTimeout(() => setSyncDot('idle'), 2000);
     } catch(e) {
@@ -515,10 +506,9 @@ function rowToCfg(r) {
 }
 
 async function loadFromSupabase() {
-  if (!anonKey) return;
   setSyncDot('syncing');
   try {
-    const row = await sbFetch(anonKey);
+    const row = await sbFetch();
     if (row) {
       cfg = rowToCfg(row);
       localStorage.setItem(LS_KEY, JSON.stringify(cfg));
@@ -759,9 +749,6 @@ function applyConfig() {
   document.getElementById('cfgGooglePlaySub').value  = cfg.googlePlaySub;
   document.getElementById('cfgGooglePlayUrl').value  = cfg.googlePlayUrl  || '';
 
-  // Anon key field
-  document.getElementById('cfgAnonKey').value = anonKey ? '••••••••' : '';
-
   document.getElementById('spinBtn').disabled = cfg.entries.length < 2;
   renderEntryList();
   drawWheel();
@@ -795,16 +782,6 @@ overlay.addEventListener('click', e => { if(e.target===overlay){overlay.classLis
 // Settings panel
 document.getElementById('settingsBtn').addEventListener('click', () => document.getElementById('settingsPanel').classList.add('open'));
 document.getElementById('closePanelBtn').addEventListener('click', () => document.getElementById('settingsPanel').classList.remove('open'));
-
-// Anon key
-document.getElementById('cfgAnonKey').addEventListener('change', async e => {
-  const val = e.target.value.trim();
-  if (!val || val === '••••••••') return;
-  anonKey = val;
-  localStorage.setItem('lwAnonKey', anonKey);
-  e.target.value = '••••••••';
-  await loadFromSupabase();
-});
 
 // Brand
 document.getElementById('cfgBrand').addEventListener('input', e => {
@@ -894,7 +871,7 @@ document.getElementById('cfgEntryList').addEventListener('click', e => {
 // ═══════════════════════════════════════════════════════════════════════════════
 setSize();
 applyConfig();
-if (anonKey) loadFromSupabase();
+loadFromSupabase();
 </script>
 </body>
 </html>
