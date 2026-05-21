@@ -20,8 +20,11 @@ create table if not exists wheel_config (
   updated_at  timestamptz default now()
 );
 
-alter table wheel_config add column if not exists wheel_bg_color text default '#111111';
-alter table wheel_config add column if not exists wheel_bg_url   text;
+alter table wheel_config add column if not exists wheel_bg_color  text    default '#111111';
+alter table wheel_config add column if not exists wheel_bg_url    text;
+alter table wheel_config add column if not exists wheel_bg_offset numeric default 0;
+alter table wheel_config add column if not exists spin_speed      numeric default 3;
+alter table wheel_config add column if not exists spin_btn_url    text;
 
 insert into wheel_config (id) values (1) on conflict (id) do nothing;
 
