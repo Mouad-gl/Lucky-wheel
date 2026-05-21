@@ -486,6 +486,17 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
     </div>
 
     <div class="psec">
+      <h3>Popup</h3>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Title text</div>
+      <input type="text" class="pinput" id="cfgPopupTitle" placeholder="Winner"/>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Close button text</div>
+      <input type="text" class="pinput" id="cfgPopupBtnText" placeholder="Awesome!"/>
+      <div class="prow"><label>Card background color</label><input type="color" class="pcolor" id="cfgPopupBgColor" value="#0d1a0d"/></div>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Card background image (overrides color)</div>
+      <div class="url-row"><input type="url" class="pinput" id="cfgPopupBgUrl" placeholder="https://… or upload →"/><button class="upbtn" data-ufield="popupBgUrl">⬆ Upload</button></div>
+    </div>
+
+    <div class="psec">
       <h3>Prizes</h3>
       <div style="font-size:.72rem;color:#555;margin-bottom:8px">Set a higher chance number to make a prize more likely to win.</div>
       <div class="elist" id="cfgEntryList"></div>
@@ -526,10 +537,10 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 
 <!-- Result overlay -->
 <div id="overlay">
-  <div class="rcard">
+  <div class="rcard" id="resultCard">
     <div class="rtrophy">🏆</div>
     <img id="resultImg" src="" alt="" style="display:none;width:96px;height:96px;object-fit:cover;border-radius:12px;margin:0 auto 12px;box-shadow:0 4px 20px rgba(0,0,0,.6)"/>
-    <div class="rlbl">Winner</div>
+    <div class="rlbl" id="popupTitleEl">Winner</div>
     <div class="rwinner" id="resultText"></div>
     <button class="rclose" id="resultClose">Awesome!</button>
   </div>
@@ -602,6 +613,8 @@ const DEFAULTS = {
   wheelBgColor: '#111111', wheelBgUrl: '', wheelBgOffset: 0,
   showLabels: true, showStore: true,
   spinSpeed: 3, spinBtnUrl: '', logoSize: 80,
+  popupTitle: 'Winner', popupBtnText: 'Awesome!',
+  popupBgColor: '#0d1a0d', popupBgUrl: '',
   appStoreSub: 'Download on the', appStoreUrl: '',
   googlePlaySub: 'Get it on', googlePlayUrl: '',
   entries: [
@@ -679,6 +692,10 @@ function cfgToRow(c) {
     show_labels: c.showLabels, show_store: c.showStore,
     spin_speed: c.spinSpeed ?? 3,
     spin_btn_url: c.spinBtnUrl || null,
+    popup_title: c.popupTitle || null,
+    popup_btn_text: c.popupBtnText || null,
+    popup_bg_color: c.popupBgColor || null,
+    popup_bg_url: c.popupBgUrl || null,
     app_store_label: c.appStoreSub, app_store_url: c.appStoreUrl || null,
     google_play_label: c.googlePlaySub, google_play_url: c.googlePlayUrl || null,
     entries: c.entries,
@@ -701,6 +718,10 @@ function rowToCfg(r) {
     showStore: r.show_store ?? true,
     spinSpeed: r.spin_speed ?? DEFAULTS.spinSpeed,
     spinBtnUrl: r.spin_btn_url || '',
+    popupTitle: r.popup_title || DEFAULTS.popupTitle,
+    popupBtnText: r.popup_btn_text || DEFAULTS.popupBtnText,
+    popupBgColor: r.popup_bg_color || DEFAULTS.popupBgColor,
+    popupBgUrl: r.popup_bg_url || '',
     appStoreSub: r.app_store_label || DEFAULTS.appStoreSub,
     appStoreUrl: r.app_store_url || '',
     googlePlaySub: r.google_play_label || DEFAULTS.googlePlaySub,
@@ -1058,6 +1079,20 @@ function applyConfig() {
 
   document.getElementById('cfgSpinSpeed').value = cfg.spinSpeed || 3;
 
+  // Popup
+  document.getElementById('popupTitleEl').textContent    = cfg.popupTitle  || 'Winner';
+  document.getElementById('resultClose').textContent     = cfg.popupBtnText || 'Awesome!';
+  document.getElementById('cfgPopupTitle').value         = cfg.popupTitle  || '';
+  document.getElementById('cfgPopupBtnText').value       = cfg.popupBtnText || '';
+  document.getElementById('cfgPopupBgColor').value       = cfg.popupBgColor || '#0d1a0d';
+  document.getElementById('cfgPopupBgUrl').value         = cfg.popupBgUrl  || '';
+  const rcard = document.getElementById('resultCard');
+  if (cfg.popupBgUrl) {
+    rcard.style.background = `url(${cfg.popupBgUrl}) center/cover no-repeat`;
+  } else {
+    rcard.style.background = cfg.popupBgColor || '';
+  }
+
   // Spin button image
   document.getElementById('cfgSpinBtnUrl').value = cfg.spinBtnUrl || '';
   const btn = document.getElementById('spinBtn');
@@ -1236,6 +1271,32 @@ document.getElementById('cfgLogoSize').addEventListener('input', e => {
 document.getElementById('cfgBgUrl').addEventListener('input', e => {
   cfg.bgUrl = e.target.value.trim();
   document.body.style.backgroundImage = cfg.bgUrl ? `url(${cfg.bgUrl})` : 'linear-gradient(160deg,#0a0a0a,#181818)';
+  schedSave();
+});
+
+// Popup
+document.getElementById('cfgPopupTitle').addEventListener('input', e => {
+  cfg.popupTitle = e.target.value;
+  document.getElementById('popupTitleEl').textContent = cfg.popupTitle || 'Winner';
+  schedSave();
+});
+document.getElementById('cfgPopupBtnText').addEventListener('input', e => {
+  cfg.popupBtnText = e.target.value;
+  document.getElementById('resultClose').textContent = cfg.popupBtnText || 'Awesome!';
+  schedSave();
+});
+document.getElementById('cfgPopupBgColor').addEventListener('input', e => {
+  cfg.popupBgColor = e.target.value;
+  const rcard = document.getElementById('resultCard');
+  if (!cfg.popupBgUrl) rcard.style.background = cfg.popupBgColor;
+  schedSave();
+});
+document.getElementById('cfgPopupBgUrl').addEventListener('input', e => {
+  cfg.popupBgUrl = e.target.value.trim();
+  const rcard = document.getElementById('resultCard');
+  rcard.style.background = cfg.popupBgUrl
+    ? `url(${cfg.popupBgUrl}) center/cover no-repeat`
+    : (cfg.popupBgColor || '');
   schedSave();
 });
 

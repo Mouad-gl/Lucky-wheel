@@ -26,6 +26,10 @@ alter table wheel_config add column if not exists wheel_bg_offset numeric defaul
 alter table wheel_config add column if not exists spin_speed      numeric default 3;
 alter table wheel_config add column if not exists spin_btn_url    text;
 alter table wheel_config add column if not exists logo_size       numeric default 80;
+alter table wheel_config add column if not exists popup_title     text    default 'Winner';
+alter table wheel_config add column if not exists popup_btn_text  text    default 'Awesome!';
+alter table wheel_config add column if not exists popup_bg_color  text;
+alter table wheel_config add column if not exists popup_bg_url    text;
 
 insert into wheel_config (id) values (1) on conflict (id) do nothing;
 
