@@ -712,42 +712,16 @@ function loadWheelBgImg(url) {
   wheelBgImg.src = url;
 }
 
-// Prize image cache — loaded without crossOrigin so any URL works on all devices.
-// White-BG removal is attempted via a separate CORS request and only applied if allowed.
+// Prize image cache — no crossOrigin so images load from any host on any device
 const prizeImgCache = {};
-
-function tryRemoveWhiteBg(url, plainImg) {
-  const cors = new Image();
-  cors.crossOrigin = 'anonymous';
-  cors.onload = () => {
-    try {
-      const oc = document.createElement('canvas');
-      oc.width = cors.naturalWidth; oc.height = cors.naturalHeight;
-      const c = oc.getContext('2d');
-      c.drawImage(cors, 0, 0);
-      const data = c.getImageData(0, 0, oc.width, oc.height);
-      const d = data.data;
-      for (let i = 0; i < d.length; i += 4) {
-        if (d[i] > 235 && d[i+1] > 235 && d[i+2] > 235) d[i+3] = 0;
-      }
-      c.putImageData(data, 0, 0);
-      prizeImgCache[url] = oc;
-      drawWheel();
-    } catch { /* CORS not allowed — keep plain image */ }
-  };
-  cors.src = url;
-}
 
 function preloadPrizeImages() {
   cfg.entries.forEach(e => {
     const url = normEntry(e).imageUrl;
     if (!url || prizeImgCache[url]) return;
     const img = new Image();
-    img.onload = () => {
-      prizeImgCache[url] = img;
-      drawWheel();
-      tryRemoveWhiteBg(url, img); // upgrade to white-BG-removed version if CORS allows
-    };
+    img.onload = () => { prizeImgCache[url] = img; drawWheel(); };
+    img.onerror = () => { delete prizeImgCache[url]; };
     img.src = url;
     prizeImgCache[url] = img;
   });
@@ -833,7 +807,7 @@ function drawWheel(r) {
     const ly      = cy + labelR * Math.sin(mid);
 
     const img = entry.imageUrl && prizeImgCache[entry.imageUrl];
-    const imgReady = img && (img instanceof HTMLCanvasElement || (img.complete && img.naturalWidth > 0));
+    const imgReady = img && img.complete && img.naturalWidth > 0;
 
     if (imgReady) {
       ctx.save();
