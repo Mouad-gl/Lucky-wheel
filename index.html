@@ -435,16 +435,18 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 // SUPABASE
 // ═══════════════════════════════════════════════════════════════════════════════
 const SB_URL   = 'https://iyzjyxlegljwcbmayhqq.supabase.co';
-const SB_ANON_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5emp5eGxlZ2xqd2NibWF5aHFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNTgzNjgsImV4cCI6MjA5NDkzNDM2OH0.obtxHAT22J9UXSevcfm2tkTU_mj0_QmH8Ehde7LHBaA';
+const SB_ANON_FALLBACK = 'sb_publishable__cabdqlzr5FpbfebR4hH3A_ihvkofKg';
 // Key can be overridden via settings panel and is stored in localStorage
 function getSbAnon() { return localStorage.getItem('lwSbKey') || SB_ANON_FALLBACK; }
 const SB_TABLE = 'wheel_config';
 
 function sbHeaders() {
   const k = getSbAnon();
+  // New sb_publishable_ keys use apikey header only; old JWT keys also need Bearer
+  const isJwt = k.startsWith('eyJ');
   return {
     'apikey': k,
-    'Authorization': `Bearer ${k}`,
+    ...(isJwt ? { 'Authorization': `Bearer ${k}` } : {}),
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'Accept-Profile': 'public',
