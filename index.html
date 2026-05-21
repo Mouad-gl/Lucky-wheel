@@ -34,7 +34,7 @@ body{
 #logoWrap{
   width:80px;height:80px;
   display:flex;align-items:center;justify-content:center;
-  transition:transform .2s;cursor:pointer;
+  transition:transform .2s, width .2s, height .2s;cursor:pointer;
 }
 #logoWrap:hover{transform:scale(1.06)}
 #logoWrap img,#logoWrap svg{width:100%;height:100%;object-fit:contain}
@@ -433,6 +433,8 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
       <input type="text" class="pinput" id="cfgBrand" placeholder="Brand name"/>
       <div style="font-size:.72rem;color:#555;margin-bottom:4px">Logo image</div>
       <div class="url-row"><input type="url" class="pinput" id="cfgLogoUrl" placeholder="https://… or upload →"/><button class="upbtn" data-ufield="logoUrl">⬆ Upload</button></div>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Logo size <span id="cfgLogoSizeVal" style="color:#888">80px</span></div>
+      <input type="range" id="cfgLogoSize" min="40" max="240" step="4" value="80" style="width:100%;accent-color:var(--primary)"/>
     </div>
 
     <div class="psec">
@@ -577,7 +579,7 @@ const DEFAULTS = {
   color1: '#00E676', color2: '#000000',
   wheelBgColor: '#111111', wheelBgUrl: '', wheelBgOffset: 0,
   showLabels: true, showStore: true,
-  spinSpeed: 3, spinBtnUrl: '',
+  spinSpeed: 3, spinBtnUrl: '', logoSize: 80,
   appStoreSub: 'Download on the', appStoreUrl: '',
   googlePlaySub: 'Get it on', googlePlayUrl: '',
   entries: [
@@ -651,6 +653,7 @@ function cfgToRow(c) {
     color1: c.color1, color2: c.color2,
     wheel_bg_color: c.wheelBgColor, wheel_bg_url: c.wheelBgUrl || null,
     wheel_bg_offset: c.wheelBgOffset ?? 0,
+    logo_size: c.logoSize ?? 80,
     show_labels: c.showLabels, show_store: c.showStore,
     spin_speed: c.spinSpeed ?? 3,
     spin_btn_url: c.spinBtnUrl || null,
@@ -671,6 +674,7 @@ function rowToCfg(r) {
     wheelBgColor: r.wheel_bg_color || DEFAULTS.wheelBgColor,
     wheelBgUrl: r.wheel_bg_url || '',
     wheelBgOffset: r.wheel_bg_offset ?? 0,
+    logoSize: r.logo_size ?? 80,
     showLabels: r.show_labels ?? true,
     showStore: r.show_store ?? true,
     spinSpeed: r.spin_speed ?? DEFAULTS.spinSpeed,
@@ -1005,6 +1009,10 @@ function applyConfig() {
     logoWrap.style.display = 'none';
     logoWrap.innerHTML = '';
   }
+  const ls = cfg.logoSize || 80;
+  logoWrap.style.width = ls + 'px'; logoWrap.style.height = ls + 'px';
+  document.getElementById('cfgLogoSize').value = ls;
+  document.getElementById('cfgLogoSizeVal').textContent = ls + 'px';
 
   // Background
   document.getElementById('cfgBgUrl').value = cfg.bgUrl || '';
@@ -1162,6 +1170,13 @@ document.getElementById('cfgLogoUrl').addEventListener('input', e => {
     logoWrap.style.display = 'none';
     logoWrap.innerHTML = '';
   }
+  schedSave();
+});
+document.getElementById('cfgLogoSize').addEventListener('input', e => {
+  cfg.logoSize = Number(e.target.value);
+  document.getElementById('cfgLogoSizeVal').textContent = cfg.logoSize + 'px';
+  const lw = document.getElementById('logoWrap');
+  lw.style.width = cfg.logoSize + 'px'; lw.style.height = cfg.logoSize + 'px';
   schedSave();
 });
 
