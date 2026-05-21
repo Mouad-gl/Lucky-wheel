@@ -214,7 +214,19 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 .eitem:hover{background:rgba(255,255,255,.05)}
 .edot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .entry-thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;background:rgba(255,255,255,.05)}
-.elbl{flex:1;font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.elbl{flex:1;font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.eweight{
+  width:46px;padding:4px 6px;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:6px;color:#fff;font-size:.8rem;
+  text-align:center;outline:none;flex-shrink:0;
+  transition:border-color .2s;
+  -moz-appearance:textfield;
+}
+.eweight::-webkit-inner-spin-button,.eweight::-webkit-outer-spin-button{-webkit-appearance:none}
+.eweight:focus{border-color:var(--primary)}
+.epct{font-size:.72rem;color:#555;flex-shrink:0;width:34px;text-align:right}
 .edel{background:none;border:none;color:rgba(255,80,80,.5);cursor:pointer;font-size:.85rem;padding:2px 6px;border-radius:4px;transition:color .15s,background .15s;line-height:1}
 .edel:hover{color:#ff5555;background:rgba(255,85,85,.12)}
 .eadd-row{display:flex;gap:8px}
@@ -492,17 +504,25 @@ const DEFAULTS = {
   appStoreSub: 'Download on the', appStoreUrl: '',
   googlePlaySub: 'Get it on', googlePlayUrl: '',
   entries: [
-    {label:'Prize 1',imageUrl:''},{label:'Prize 2',imageUrl:''},
-    {label:'Prize 3',imageUrl:''},{label:'Prize 4',imageUrl:''},
-    {label:'Prize 5',imageUrl:''},{label:'Prize 6',imageUrl:''},
-    {label:'Prize 7',imageUrl:''},{label:'Prize 8',imageUrl:''},
+    {label:'Prize 1',imageUrl:'',weight:1},{label:'Prize 2',imageUrl:'',weight:1},
+    {label:'Prize 3',imageUrl:'',weight:1},{label:'Prize 4',imageUrl:'',weight:1},
+    {label:'Prize 5',imageUrl:'',weight:1},{label:'Prize 6',imageUrl:'',weight:1},
+    {label:'Prize 7',imageUrl:'',weight:1},{label:'Prize 8',imageUrl:'',weight:1},
   ],
 };
 
 // Normalise an entry — handles old string format and new object format
 function normEntry(e) {
-  if (typeof e === 'string') return { label: e, imageUrl: '' };
-  return { label: e.label || '', imageUrl: e.imageUrl || '' };
+  if (typeof e === 'string') return { label: e, imageUrl: '', weight: 1 };
+  return { label: e.label || '', imageUrl: e.imageUrl || '', weight: Math.max(1, Number(e.weight) || 1) };
+}
+
+// Returns cumulative arc angles for each segment (radians, starting at rot - π/2)
+function segmentArcs() {
+  const entries = cfg.entries.map(normEntry);
+  const total   = entries.reduce((s, e) => s + e.weight, 0);
+  const arcs    = entries.map(e => e.weight / total * Math.PI * 2);
+  return { arcs, total };
 }
 
 let cfg = (() => {
@@ -700,10 +720,11 @@ function drawWheel(r) {
     return;
   }
 
-  const arc = Math.PI*2/n;
+  const { arcs } = segmentArcs();
+  let angle = rot - Math.PI/2;
   for (let i=0; i<n; i++) {
-    const sa = rot + i*arc - Math.PI/2;
-    drawJaggedSeg(cx, cy, radius, sa, sa+arc, i%2===0 ? cfg.color1 : cfg.color2);
+    drawJaggedSeg(cx, cy, radius, angle, angle + arcs[i], i%2===0 ? cfg.color1 : cfg.color2);
+    angle += arcs[i];
   }
 
   // Outer ring
@@ -715,11 +736,12 @@ function drawWheel(r) {
     const textColor = i => cfg.color1.toLowerCase()===cfg.color2.toLowerCase() ? '#fff'
       : i%2===0 ? cfg.color2 : cfg.color1;
 
+    let startAngle = rot - Math.PI/2;
     cfg.entries.forEach((rawEntry, i) => {
       const entry   = normEntry(rawEntry);
-      const mid     = rot + i*arc - Math.PI/2 + arc/2;
+      const mid     = startAngle + arcs[i] / 2;
       const labelR  = radius * 0.60;
-      const imgSize = Math.min(radius * 0.28, labelR * arc * 0.72);
+      const imgSize = Math.min(radius * 0.28, labelR * arcs[i] * 0.72);
       const lx      = cx + labelR * Math.cos(mid);
       const ly      = cy + labelR * Math.sin(mid);
 
@@ -764,6 +786,7 @@ function drawWheel(r) {
         ctx.fillText(txt, 0, 0);
         ctx.restore();
       }
+      startAngle += arcs[i];
     });
   }
 }
@@ -794,9 +817,14 @@ function spin() {
 }
 
 function winnerIndex() {
-  const arc  = Math.PI*2/cfg.entries.length;
-  const norm = ((-rot%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
-  return Math.floor(norm/arc)%cfg.entries.length;
+  const { arcs } = segmentArcs();
+  const norm = ((-rot % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  let cumulative = 0;
+  for (let i = 0; i < arcs.length; i++) {
+    cumulative += arcs[i];
+    if (norm < cumulative) return i;
+  }
+  return arcs.length - 1;
 }
 
 function showResult() {
@@ -905,16 +933,20 @@ function renderEntryList() {
     list.innerHTML = '<div style="font-size:.8rem;color:#444;text-align:center;padding:12px 0">No prizes yet</div>';
     return;
   }
-  list.innerHTML = cfg.entries.map((raw, i) => {
-    const e   = normEntry(raw);
+  const entries = cfg.entries.map(normEntry);
+  const total   = entries.reduce((s, e) => s + e.weight, 0);
+  list.innerHTML = entries.map((e, i) => {
     const col = i%2===0 ? cfg.color1 : cfg.color2;
     const dot = ['#000','#000000'].includes(col.toLowerCase()) ? '#2a2a2a' : col;
     const thumb = e.imageUrl
       ? `<img src="${esc(e.imageUrl)}" class="entry-thumb" onerror="this.style.opacity='.2'" alt=""/>`
       : `<span class="edot" style="background:${dot};outline:1px solid rgba(255,255,255,.1)"></span>`;
+    const pct = Math.round(e.weight / total * 100);
     return `<div class="eitem">
       ${thumb}
       <span class="elbl">${esc(e.label || '(no label)')}</span>
+      <input type="number" class="eweight" min="1" max="999" value="${e.weight}" data-wi="${i}" title="Weight (higher = more likely)"/>
+      <span class="epct">${pct}%</span>
       <button class="edel" data-i="${i}">✕</button>
     </div>`;
   }).join('');
@@ -1018,7 +1050,7 @@ function addEntry() {
   const label    = document.getElementById('cfgEntryLabel').value.trim();
   const imageUrl = document.getElementById('cfgEntryImage').value.trim();
   if (!label && !imageUrl) return;
-  const entry = { label, imageUrl };
+  const entry = { label, imageUrl, weight: 1 };
   cfg.entries.push(entry);
   document.getElementById('cfgEntryLabel').value = '';
   document.getElementById('cfgEntryImage').value = '';
@@ -1033,6 +1065,17 @@ document.getElementById('cfgEntryList').addEventListener('click', e => {
   cfg.entries.splice(Number(btn.dataset.i),1);
   document.getElementById('spinBtn').disabled = cfg.entries.length < 2;
   renderEntryList(); drawWheel(); schedSave();
+});
+document.getElementById('cfgEntryList').addEventListener('input', e => {
+  const inp = e.target.closest('.eweight'); if (!inp) return;
+  const i = Number(inp.dataset.wi);
+  cfg.entries[i] = { ...normEntry(cfg.entries[i]), weight: Math.max(1, Number(inp.value) || 1) };
+  const entries = cfg.entries.map(normEntry);
+  const total   = entries.reduce((s, en) => s + en.weight, 0);
+  document.querySelectorAll('#cfgEntryList .epct').forEach((el, j) => {
+    el.textContent = Math.round(entries[j].weight / total * 100) + '%';
+  });
+  drawWheel(); schedSave();
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
