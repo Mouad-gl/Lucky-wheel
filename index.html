@@ -123,6 +123,22 @@ body::before{
 #syncDot.ok{background:var(--primary);box-shadow:0 0 8px rgba(0,230,118,.5)}
 #syncDot.err{background:#ff5555;box-shadow:0 0 8px rgba(255,85,85,.5)}
 
+/* ── Toast notification ── */
+#toast{
+  position:fixed;bottom:80px;left:50%;
+  transform:translateX(-50%) translateY(12px);
+  background:rgba(8,8,8,.96);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;padding:10px 20px;
+  font-size:.82rem;color:#bbb;
+  white-space:nowrap;z-index:200;
+  opacity:0;pointer-events:none;
+  transition:opacity .35s,transform .35s;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.success{border-color:rgba(0,230,118,.4);color:#00E676}
+#toast.error{border-color:rgba(255,85,85,.4);color:#ff7070}
+
 /* ── Settings gear ── */
 #settingsBtn{
   position:fixed;bottom:20px;right:20px;
@@ -319,6 +335,7 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 </div>
 
 <div id="syncDot" title="Supabase sync status"></div>
+<div id="toast"></div>
 <button id="settingsBtn" title="Customize">⚙</button>
 
 <!-- Settings panel -->
@@ -420,6 +437,15 @@ async function sbFetch() {
   return rows[0] || null;
 }
 
+async function sbInsert() {
+  const res = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}`, {
+    method: 'POST',
+    headers: { ...sbHeaders(), 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ id: 1, ...cfgToRow(cfg) })
+  });
+  if (!res.ok) throw new Error(`Insert HTTP ${res.status}`);
+}
+
 async function sbSave(data) {
   const res = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}?id=eq.1`, {
     method: 'PATCH',
@@ -450,9 +476,17 @@ let cfg = (() => {
 
 let saveTimer = null;
 
-function setSyncDot(state) { // 'idle'|'syncing'|'ok'|'err'
-  const d = document.getElementById('syncDot');
-  d.className = state === 'idle' ? '' : state;
+function setSyncDot(state) {
+  document.getElementById('syncDot').className = state === 'idle' ? '' : state;
+}
+
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 3500);
 }
 
 // Debounced save: writes to localStorage immediately, Supabase after 800ms idle
@@ -510,14 +544,22 @@ async function loadFromSupabase() {
   try {
     const row = await sbFetch();
     if (row) {
+      console.log('[Supabase] loaded row:', row);
       cfg = rowToCfg(row);
       localStorage.setItem(LS_KEY, JSON.stringify(cfg));
+      showToast('✓ Config loaded from Supabase', 'success');
+    } else {
+      // Table exists but no row yet — auto-insert defaults
+      console.warn('[Supabase] table empty, inserting default row…');
+      await sbInsert();
+      showToast('✓ Supabase connected — default row created', 'success');
     }
     setSyncDot('ok');
     setTimeout(() => setSyncDot('idle'), 2000);
   } catch(e) {
-    console.warn('Supabase load failed:', e);
+    console.error('[Supabase] load failed:', e.message);
     setSyncDot('err');
+    showToast('✗ Supabase: ' + e.message, 'error');
   }
   applyConfig();
 }
