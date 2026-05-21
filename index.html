@@ -91,6 +91,12 @@ body{
 #spinBtn:not(:disabled):hover{transform:translateY(-3px) scale(1.03);box-shadow:0 8px 36px rgba(0,230,118,.55)}
 #spinBtn:not(:disabled):active{transform:translateY(0) scale(.98)}
 #spinBtn:disabled{opacity:.38;cursor:not-allowed}
+#spinBtn.img-btn{
+  padding:0;background:transparent;border:none;box-shadow:none;
+  border-radius:0;width:130px;height:130px;
+}
+#spinBtn.img-btn img{width:100%;height:100%;object-fit:contain;display:block}
+#spinBtn.img-btn:disabled{opacity:.38}
 
 /* ── Store buttons ── */
 #storeSection{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
@@ -394,6 +400,12 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
     </div>
 
     <div class="psec">
+      <h3>Spin Button</h3>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Custom image URL (replaces the SPIN button)</div>
+      <input type="url" class="pinput" id="cfgSpinBtnUrl" placeholder="https://…/button.png"/>
+    </div>
+
+    <div class="psec">
       <h3>Prizes</h3>
       <div style="font-size:.72rem;color:#555;margin-bottom:8px">Set a higher chance number to make a prize more likely to win.</div>
       <div class="elist" id="cfgEntryList"></div>
@@ -502,7 +514,7 @@ const DEFAULTS = {
   color1: '#00E676', color2: '#000000',
   wheelBgColor: '#111111', wheelBgUrl: '',
   showLabels: true, showStore: true,
-  spinSpeed: 3,
+  spinSpeed: 3, spinBtnUrl: '',
   appStoreSub: 'Download on the', appStoreUrl: '',
   googlePlaySub: 'Get it on', googlePlayUrl: '',
   entries: [
@@ -787,6 +799,27 @@ function drawWheel(r) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// IDLE ANIMATION
+// ═══════════════════════════════════════════════════════════════════════════════
+let idleRaf = null;
+const IDLE_SPEED = Math.PI * 2 / (9 * 60); // ~1 rotation per 9 s at 60 fps
+
+function startIdleAnim() {
+  if (idleRaf || spinning) return;
+  function tick() {
+    if (spinning) { idleRaf = null; return; }
+    rot += IDLE_SPEED;
+    drawWheel();
+    idleRaf = requestAnimationFrame(tick);
+  }
+  idleRaf = requestAnimationFrame(tick);
+}
+
+function stopIdleAnim() {
+  if (idleRaf) { cancelAnimationFrame(idleRaf); idleRaf = null; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SPIN
 // ═══════════════════════════════════════════════════════════════════════════════
 const SPIN_DURATIONS = [8000, 6500, 5000, 3200, 1800]; // index 0=slowest, 4=fastest
@@ -794,6 +827,7 @@ let currentWinner = 0;
 
 function spin() {
   if (spinning || cfg.entries.length < 2) return;
+  stopIdleAnim();
   spinning = true;
   document.getElementById('spinBtn').disabled = true;
   canvas.classList.add('spinning');
@@ -919,6 +953,18 @@ function applyConfig() {
   document.getElementById('cfgGooglePlayUrl').value  = cfg.googlePlayUrl  || '';
 
   document.getElementById('cfgSpinSpeed').value = cfg.spinSpeed || 3;
+
+  // Spin button image
+  document.getElementById('cfgSpinBtnUrl').value = cfg.spinBtnUrl || '';
+  const btn = document.getElementById('spinBtn');
+  if (cfg.spinBtnUrl) {
+    btn.classList.add('img-btn');
+    btn.innerHTML = `<img src="${cfg.spinBtnUrl}" alt="SPIN" onerror="this.parentNode.classList.remove('img-btn');this.parentNode.textContent='SPIN'"/>`;
+  } else {
+    btn.classList.remove('img-btn');
+    btn.textContent = 'SPIN';
+  }
+
   document.getElementById('spinBtn').disabled = cfg.entries.length < 2;
   preloadPrizeImages();
   renderEntryList();
@@ -957,8 +1003,8 @@ document.getElementById('hub').addEventListener('click', spin);
 
 // Result
 const overlay = document.getElementById('overlay');
-document.getElementById('resultClose').addEventListener('click', () => { overlay.classList.remove('show'); cp=[]; });
-overlay.addEventListener('click', e => { if(e.target===overlay){overlay.classList.remove('show');cp=[];} });
+document.getElementById('resultClose').addEventListener('click', () => { overlay.classList.remove('show'); cp=[]; startIdleAnim(); });
+overlay.addEventListener('click', e => { if(e.target===overlay){overlay.classList.remove('show');cp=[];startIdleAnim();} });
 
 // Settings panel
 document.getElementById('settingsBtn').addEventListener('click', () => document.getElementById('settingsPanel').classList.add('open'));
@@ -1034,6 +1080,20 @@ document.getElementById('cfgSpinSpeed').addEventListener('input', e => {
   schedSave();
 });
 
+// Spin button image
+document.getElementById('cfgSpinBtnUrl').addEventListener('input', e => {
+  cfg.spinBtnUrl = e.target.value.trim();
+  const btn = document.getElementById('spinBtn');
+  if (cfg.spinBtnUrl) {
+    btn.classList.add('img-btn');
+    btn.innerHTML = `<img src="${cfg.spinBtnUrl}" alt="SPIN" onerror="this.parentNode.classList.remove('img-btn');this.parentNode.textContent='SPIN'"/>`;
+  } else {
+    btn.classList.remove('img-btn');
+    btn.textContent = 'SPIN';
+  }
+  schedSave();
+});
+
 // Entries
 function addEntry() {
   const label    = document.getElementById('cfgEntryLabel').value.trim();
@@ -1073,6 +1133,7 @@ document.getElementById('cfgEntryList').addEventListener('input', e => {
 setSize();
 applyConfig();
 loadFromSupabase();
+startIdleAnim();
 </script>
 </body>
 </html>
