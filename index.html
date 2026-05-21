@@ -394,7 +394,17 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
     </div>
 
     <div class="psec">
+      <h3>Spin Speed</h3>
+      <div class="prow" style="gap:14px">
+        <span style="font-size:.78rem;color:#777">Slow</span>
+        <input type="range" id="cfgSpinSpeed" min="1" max="5" step="1" style="flex:1;accent-color:var(--primary)"/>
+        <span style="font-size:.78rem;color:#777">Fast</span>
+      </div>
+    </div>
+
+    <div class="psec">
       <h3>Prizes</h3>
+      <div style="font-size:.72rem;color:#555;margin-bottom:8px">Set a higher chance number to make a prize more likely to win.</div>
       <div class="elist" id="cfgEntryList"></div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div class="eadd-row">
@@ -501,28 +511,34 @@ const DEFAULTS = {
   color1: '#00E676', color2: '#000000',
   wheelBgColor: '#111111', wheelBgUrl: '',
   showLabels: true, showStore: true,
+  spinSpeed: 3,
   appStoreSub: 'Download on the', appStoreUrl: '',
   googlePlaySub: 'Get it on', googlePlayUrl: '',
   entries: [
-    {label:'Prize 1',imageUrl:'',weight:1},{label:'Prize 2',imageUrl:'',weight:1},
-    {label:'Prize 3',imageUrl:'',weight:1},{label:'Prize 4',imageUrl:'',weight:1},
-    {label:'Prize 5',imageUrl:'',weight:1},{label:'Prize 6',imageUrl:'',weight:1},
-    {label:'Prize 7',imageUrl:'',weight:1},{label:'Prize 8',imageUrl:'',weight:1},
+    {label:'Prize 1',imageUrl:'',prob:1},{label:'Prize 2',imageUrl:'',prob:1},
+    {label:'Prize 3',imageUrl:'',prob:1},{label:'Prize 4',imageUrl:'',prob:1},
+    {label:'Prize 5',imageUrl:'',prob:1},{label:'Prize 6',imageUrl:'',prob:1},
+    {label:'Prize 7',imageUrl:'',prob:1},{label:'Prize 8',imageUrl:'',prob:1},
   ],
 };
 
-// Normalise an entry — handles old string format and new object format
+// Normalise an entry — backward compat with old string/weight formats
 function normEntry(e) {
-  if (typeof e === 'string') return { label: e, imageUrl: '', weight: 1 };
-  return { label: e.label || '', imageUrl: e.imageUrl || '', weight: Math.max(1, Number(e.weight) || 1) };
+  if (typeof e === 'string') return { label: e, imageUrl: '', prob: 1 };
+  return { label: e.label || '', imageUrl: e.imageUrl || '', prob: Math.max(0, Number(e.prob ?? e.weight) || 1) };
 }
 
-// Returns cumulative arc angles for each segment (radians, starting at rot - π/2)
-function segmentArcs() {
+// Pick a winner index using probability weights
+function pickWinner() {
   const entries = cfg.entries.map(normEntry);
-  const total   = entries.reduce((s, e) => s + e.weight, 0);
-  const arcs    = entries.map(e => e.weight / total * Math.PI * 2);
-  return { arcs, total };
+  const total   = entries.reduce((s, e) => s + e.prob, 0);
+  if (total <= 0) return Math.floor(Math.random() * entries.length);
+  let r = Math.random() * total;
+  for (let i = 0; i < entries.length; i++) {
+    r -= entries[i].prob;
+    if (r <= 0) return i;
+  }
+  return entries.length - 1;
 }
 
 let cfg = (() => {
@@ -591,6 +607,7 @@ function rowToCfg(r) {
     appStoreUrl: r.app_store_url || '',
     googlePlaySub: r.google_play_label || DEFAULTS.googlePlaySub,
     googlePlayUrl: r.google_play_url || '',
+    spinSpeed: cfg.spinSpeed || DEFAULTS.spinSpeed,
     entries: Array.isArray(r.entries) ? r.entries.map(normEntry) : DEFAULTS.entries,
   };
 }
@@ -720,11 +737,10 @@ function drawWheel(r) {
     return;
   }
 
-  const { arcs } = segmentArcs();
-  let angle = rot - Math.PI/2;
+  const arc = Math.PI*2/n;
   for (let i=0; i<n; i++) {
-    drawJaggedSeg(cx, cy, radius, angle, angle + arcs[i], i%2===0 ? cfg.color1 : cfg.color2);
-    angle += arcs[i];
+    const sa = rot + i*arc - Math.PI/2;
+    drawJaggedSeg(cx, cy, radius, sa, sa+arc, i%2===0 ? cfg.color1 : cfg.color2);
   }
 
   // Outer ring
@@ -736,12 +752,11 @@ function drawWheel(r) {
     const textColor = i => cfg.color1.toLowerCase()===cfg.color2.toLowerCase() ? '#fff'
       : i%2===0 ? cfg.color2 : cfg.color1;
 
-    let startAngle = rot - Math.PI/2;
     cfg.entries.forEach((rawEntry, i) => {
       const entry   = normEntry(rawEntry);
-      const mid     = startAngle + arcs[i] / 2;
+      const mid     = rot + i*arc - Math.PI/2 + arc/2;
       const labelR  = radius * 0.60;
-      const imgSize = Math.min(radius * 0.28, labelR * arcs[i] * 0.72);
+      const imgSize = Math.min(radius * 0.28, labelR * arc * 0.72);
       const lx      = cx + labelR * Math.cos(mid);
       const ly      = cy + labelR * Math.sin(mid);
 
@@ -786,7 +801,6 @@ function drawWheel(r) {
         ctx.fillText(txt, 0, 0);
         ctx.restore();
       }
-      startAngle += arcs[i];
     });
   }
 }
@@ -794,20 +808,39 @@ function drawWheel(r) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // SPIN
 // ═══════════════════════════════════════════════════════════════════════════════
+const SPIN_DURATIONS = [8000, 6500, 5000, 3200, 1800]; // index 0=slowest, 4=fastest
+let currentWinner = 0;
+
 function spin() {
   if (spinning || cfg.entries.length < 2) return;
   spinning = true;
   document.getElementById('spinBtn').disabled = true;
   canvas.classList.add('spinning');
 
-  const total    = Math.PI*2*(7 + Math.random()*9);
-  const duration = 4200 + Math.random()*1600;
+  const n       = cfg.entries.length;
+  const arc     = Math.PI * 2 / n;
+  currentWinner = pickWinner();
+
+  // Target rotation: winner segment midpoint under pointer (12 o'clock = -π/2)
+  // Midpoint of segment w at rotation R is: R + w*arc - π/2 + arc/2
+  // We need that = -π/2, so R = -(w + 0.5)*arc
+  const targetBase   = -(currentWinner + 0.5) * arc;
+  const randomJitter = (Math.random() - 0.5) * arc * 0.55; // vary within segment
+  const targetNorm   = ((targetBase + randomJitter) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+  const startNorm    = (rot % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+  let delta = targetNorm - startNorm;
+  if (delta < 0) delta += Math.PI * 2;
+
+  const numSpins = 6 + Math.floor(Math.random() * 4);
+  const totalRot = numSpins * Math.PI * 2 + delta;
+  const speedIdx = Math.max(0, Math.min(4, Math.round((cfg.spinSpeed || 3) - 1)));
+  const duration = SPIN_DURATIONS[speedIdx];
   const startRot = rot, t0 = performance.now();
-  const ease     = t => 1 - Math.pow(1-t, 4);
+  const ease     = t => 1 - Math.pow(1 - t, 4);
 
   requestAnimationFrame(function frame(now) {
-    const p = Math.min((now-t0)/duration, 1);
-    drawWheel(startRot + total*ease(p));
+    const p = Math.min((now - t0) / duration, 1);
+    drawWheel(startRot + totalRot * ease(p));
     if (p < 1) { requestAnimationFrame(frame); return; }
     spinning = false;
     canvas.classList.remove('spinning');
@@ -816,19 +849,8 @@ function spin() {
   });
 }
 
-function winnerIndex() {
-  const { arcs } = segmentArcs();
-  const norm = ((-rot % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
-  let cumulative = 0;
-  for (let i = 0; i < arcs.length; i++) {
-    cumulative += arcs[i];
-    if (norm < cumulative) return i;
-  }
-  return arcs.length - 1;
-}
-
 function showResult() {
-  const winner = normEntry(cfg.entries[winnerIndex()]);
+  const winner = normEntry(cfg.entries[currentWinner]);
   const ov = document.getElementById('overlay');
   document.getElementById('resultText').textContent = winner.label;
 
@@ -921,6 +943,7 @@ function applyConfig() {
   document.getElementById('cfgGooglePlaySub').value  = cfg.googlePlaySub;
   document.getElementById('cfgGooglePlayUrl').value  = cfg.googlePlayUrl  || '';
 
+  document.getElementById('cfgSpinSpeed').value = cfg.spinSpeed || 3;
   document.getElementById('spinBtn').disabled = cfg.entries.length < 2;
   preloadPrizeImages();
   renderEntryList();
@@ -934,18 +957,16 @@ function renderEntryList() {
     return;
   }
   const entries = cfg.entries.map(normEntry);
-  const total   = entries.reduce((s, e) => s + e.weight, 0);
+  const total   = entries.reduce((s, e) => s + e.prob, 0) || 1;
   list.innerHTML = entries.map((e, i) => {
-    const col = i%2===0 ? cfg.color1 : cfg.color2;
-    const dot = ['#000','#000000'].includes(col.toLowerCase()) ? '#2a2a2a' : col;
     const thumb = e.imageUrl
       ? `<img src="${esc(e.imageUrl)}" class="entry-thumb" onerror="this.style.opacity='.2'" alt=""/>`
-      : `<span class="edot" style="background:${dot};outline:1px solid rgba(255,255,255,.1)"></span>`;
-    const pct = Math.round(e.weight / total * 100);
+      : '';
+    const pct = Math.round(e.prob / total * 100);
     return `<div class="eitem">
       ${thumb}
       <span class="elbl">${esc(e.label || '(no label)')}</span>
-      <input type="number" class="eweight" min="1" max="999" value="${e.weight}" data-wi="${i}" title="Weight (higher = more likely)"/>
+      <input type="number" class="eweight" min="0" max="9999" value="${e.prob}" data-wi="${i}" title="Chance (higher = more likely to win)"/>
       <span class="epct">${pct}%</span>
       <button class="edel" data-i="${i}">✕</button>
     </div>`;
@@ -1045,12 +1066,18 @@ document.getElementById('cfgShowStore').addEventListener('change', e => {
   });
 });
 
+// Spin speed
+document.getElementById('cfgSpinSpeed').addEventListener('input', e => {
+  cfg.spinSpeed = Number(e.target.value);
+  schedSave();
+});
+
 // Entries
 function addEntry() {
   const label    = document.getElementById('cfgEntryLabel').value.trim();
   const imageUrl = document.getElementById('cfgEntryImage').value.trim();
   if (!label && !imageUrl) return;
-  const entry = { label, imageUrl, weight: 1 };
+  const entry = { label, imageUrl, prob: 1 };
   cfg.entries.push(entry);
   document.getElementById('cfgEntryLabel').value = '';
   document.getElementById('cfgEntryImage').value = '';
@@ -1069,13 +1096,13 @@ document.getElementById('cfgEntryList').addEventListener('click', e => {
 document.getElementById('cfgEntryList').addEventListener('input', e => {
   const inp = e.target.closest('.eweight'); if (!inp) return;
   const i = Number(inp.dataset.wi);
-  cfg.entries[i] = { ...normEntry(cfg.entries[i]), weight: Math.max(1, Number(inp.value) || 1) };
+  cfg.entries[i] = { ...normEntry(cfg.entries[i]), prob: Math.max(0, Number(inp.value) || 0) };
   const entries = cfg.entries.map(normEntry);
-  const total   = entries.reduce((s, en) => s + en.weight, 0);
+  const total   = entries.reduce((s, en) => s + en.prob, 0) || 1;
   document.querySelectorAll('#cfgEntryList .epct').forEach((el, j) => {
-    el.textContent = Math.round(entries[j].weight / total * 100) + '%';
+    el.textContent = Math.round(entries[j].prob / total * 100) + '%';
   });
-  drawWheel(); schedSave();
+  schedSave();
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
