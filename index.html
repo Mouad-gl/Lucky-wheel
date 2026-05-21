@@ -708,7 +708,7 @@ function drawWheel(r) {
   const cx = WS/2, cy = WS/2, radius = cx - 4;
   ctx.clearRect(0, 0, WS, WS);
 
-  // ── Wheel disc background (clipped to circle) ──
+  // ── Wheel disc background (clipped to circle, rotates with wheel) ──
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI*2); ctx.clip();
   ctx.fillStyle = cfg.wheelBgColor || '#111';
@@ -717,7 +717,9 @@ function drawWheel(r) {
     const iw = wheelBgImg.naturalWidth, ih = wheelBgImg.naturalHeight;
     const scale = Math.max(radius*2/iw, radius*2/ih);
     const dw = iw*scale, dh = ih*scale;
-    ctx.drawImage(wheelBgImg, cx - dw/2, cy - dh/2, dw, dh);
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.drawImage(wheelBgImg, -dw/2, -dh/2, dw, dh);
   }
   ctx.restore();
 
