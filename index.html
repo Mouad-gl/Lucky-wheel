@@ -348,6 +348,15 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
   <div id="panelBody">
 
     <div class="psec">
+      <h3>Supabase API Key</h3>
+      <div class="note">
+        Go to your project → Settings → <b>Data API</b> → copy the <b>anon / public</b> key and paste it here.
+      </div>
+      <input type="password" class="pinput" id="cfgSbKey" placeholder="Paste anon key here…" autocomplete="off"/>
+      <div id="sbKeyStatus" style="font-size:.75rem;margin-top:-4px;margin-bottom:4px;color:#555"></div>
+    </div>
+
+    <div class="psec">
       <h3>Brand</h3>
       <input type="text" class="pinput" id="cfgBrand" placeholder="Brand name"/>
       <div style="font-size:.72rem;color:#555;margin-bottom:4px">Logo image URL</div>
@@ -426,11 +435,14 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 // SUPABASE
 // ═══════════════════════════════════════════════════════════════════════════════
 const SB_URL   = 'https://iyzjyxlegljwcbmayhqq.supabase.co';
-const SB_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5emp5eGxlZ2xqd2NibWF5aHFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNTgzNjgsImV4cCI6MjA5NDkzNDM2OH0.obtxHAT22J9UXSevcfm2tkTU_mj0_QmH8Ehde7LHBaA';
+const SB_ANON_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5emp5eGxlZ2xqd2NibWF5aHFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNTgzNjgsImV4cCI6MjA5NDkzNDM2OH0.obtxHAT22J9UXSevcfm2tkTU_mj0_QmH8Ehde7LHBaA';
+// Key can be overridden via settings panel and is stored in localStorage
+function getSbAnon() { return localStorage.getItem('lwSbKey') || SB_ANON_FALLBACK; }
 const SB_TABLE = 'wheel_config';
 
 function sbHeaders() {
-  return { 'Content-Type': 'application/json', 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` };
+  const k = getSbAnon();
+  return { 'Content-Type': 'application/json', 'apikey': k, 'Authorization': `Bearer ${k}` };
 }
 
 async function sbFetch() {
@@ -572,10 +584,14 @@ async function loadFromSupabase() {
     }
     setSyncDot('ok');
     setTimeout(() => setSyncDot('idle'), 2000);
+    const s = document.getElementById('sbKeyStatus');
+    if (s) { s.textContent = '✓ Connected'; s.style.color = '#00E676'; }
   } catch(e) {
     console.error('[Supabase] load failed:', e.message);
     setSyncDot('err');
     showToast('✗ Supabase: ' + e.message, 'error');
+    const s = document.getElementById('sbKeyStatus');
+    if (s) { s.textContent = '✗ ' + e.message + ' — paste correct key above'; s.style.color = '#ff7070'; }
   }
   applyConfig();
 }
@@ -911,6 +927,17 @@ overlay.addEventListener('click', e => { if(e.target===overlay){overlay.classLis
 // Settings panel
 document.getElementById('settingsBtn').addEventListener('click', () => document.getElementById('settingsPanel').classList.add('open'));
 document.getElementById('closePanelBtn').addEventListener('click', () => document.getElementById('settingsPanel').classList.remove('open'));
+
+// Supabase API key override
+document.getElementById('cfgSbKey').addEventListener('change', async e => {
+  const val = e.target.value.trim();
+  if (!val) return;
+  localStorage.setItem('lwSbKey', val);
+  e.target.value = '';
+  document.getElementById('sbKeyStatus').textContent = 'Key saved — reconnecting…';
+  document.getElementById('sbKeyStatus').style.color = '#f7b731';
+  await loadFromSupabase();
+});
 
 // Brand
 document.getElementById('cfgBrand').addEventListener('input', e => {
