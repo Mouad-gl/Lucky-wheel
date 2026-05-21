@@ -774,7 +774,9 @@ function preloadPrizeImages() {
 
 function setSize() {
   WS = Math.min(window.innerWidth - 32, 460);
-  canvas.width = canvas.height = WS;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.height = WS * dpr;
+  canvas.style.width = canvas.style.height = WS + 'px';
   const hs = Math.max(28, WS * 0.092);
   const hub = document.getElementById('hub');
   hub.style.width = hub.style.height = hs + 'px';
@@ -809,6 +811,8 @@ function drawJaggedSeg(cx, cy, r, sa, ea, color) {
 
 function drawWheel(r) {
   if (r !== undefined) rot = r;
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const n = cfg.entries.length;
   const cx = WS/2, cy = WS/2, radius = cx - 4;
   ctx.clearRect(0, 0, WS, WS);
