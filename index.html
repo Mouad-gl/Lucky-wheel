@@ -376,17 +376,8 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
       <input type="url" class="pinput" id="cfgBgUrl" placeholder="https://…/background.jpg"/>
     </div>
 
-    <div class="psec">
-      <h3>Wheel Colors</h3>
-      <div class="prow"><label>Primary color</label><input type="color" class="pcolor" id="cfgColor1"/></div>
-      <div class="prow"><label>Secondary color</label><input type="color" class="pcolor" id="cfgColor2"/></div>
-      <div class="tog-row">
-        <span class="lbl">Show prize labels</span>
-        <label class="tog"><input type="checkbox" id="cfgShowLabels"/><span class="tog-sl"></span></label>
-      </div>
-    </div>
 
-    <div class="psec">
+<div class="psec">
       <h3>Wheel Background</h3>
       <div class="prow"><label>Background color</label><input type="color" class="pcolor" id="cfgWheelBgColor"/></div>
       <div style="font-size:.72rem;color:#555;margin-bottom:4px">Background image URL <span style="color:#444">(shows behind segments)</span></div>
@@ -907,12 +898,6 @@ function applyConfig() {
   document.title = cfg.brand;
   document.getElementById('cfgBrand').value = cfg.brand;
 
-  // Colors
-  document.documentElement.style.setProperty('--primary', cfg.color1);
-  document.getElementById('cfgColor1').value = cfg.color1;
-  document.getElementById('cfgColor2').value = cfg.color2;
-  document.getElementById('cfgShowLabels').checked = cfg.showLabels;
-
   // Wheel background
   document.getElementById('cfgWheelBgColor').value = cfg.wheelBgColor || '#111111';
   document.getElementById('cfgWheelBgUrl').value   = cfg.wheelBgUrl  || '';
@@ -1005,19 +990,6 @@ document.getElementById('cfgBrand').addEventListener('input', e => {
   cfg.brand = e.target.value;
   document.getElementById('brandName').textContent = cfg.brand;
   document.title = cfg.brand; schedSave();
-});
-
-// Colors
-document.getElementById('cfgColor1').addEventListener('input', e => {
-  cfg.color1 = e.target.value;
-  document.documentElement.style.setProperty('--primary', cfg.color1);
-  renderEntryList(); drawWheel(); schedSave();
-});
-document.getElementById('cfgColor2').addEventListener('input', e => {
-  cfg.color2 = e.target.value; renderEntryList(); drawWheel(); schedSave();
-});
-document.getElementById('cfgShowLabels').addEventListener('change', e => {
-  cfg.showLabels = e.target.checked; drawWheel(); schedSave();
 });
 
 // Wheel background
