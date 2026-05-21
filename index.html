@@ -984,7 +984,6 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 
 function applyConfig() {
   // Brand
-  document.getElementById('brandName').textContent = cfg.brand;
   document.title = cfg.brand;
   document.getElementById('cfgBrand').value = cfg.brand;
 
@@ -1128,7 +1127,6 @@ document.getElementById('cfgSbKey').addEventListener('change', async e => {
 // Brand
 document.getElementById('cfgBrand').addEventListener('input', e => {
   cfg.brand = e.target.value;
-  document.getElementById('brandName').textContent = cfg.brand;
   document.title = cfg.brand; schedSave();
 });
 
