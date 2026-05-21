@@ -233,6 +233,18 @@ body{
 input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:0;background:none}
 
 /* Toggle */
+/* Upload button */
+.upbtn{
+  flex-shrink:0;padding:5px 10px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  border-radius:7px;color:#888;font-size:.75rem;cursor:pointer;
+  transition:border-color .2s,color .2s,background .2s;white-space:nowrap;
+}
+.upbtn:hover{border-color:var(--primary);color:#fff;background:rgba(0,230,118,.08)}
+.upbtn.uploading{color:var(--primary);border-color:var(--primary);pointer-events:none}
+.url-row{display:flex;gap:6px;align-items:center;margin-bottom:10px}
+.url-row .pinput{margin-bottom:0;flex:1}
+
 .tog-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .tog-row .lbl{font-size:.83rem;color:#bbb}
 .tog{position:relative;width:38px;height:20px}
@@ -419,22 +431,21 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
     <div class="psec">
       <h3>Brand</h3>
       <input type="text" class="pinput" id="cfgBrand" placeholder="Brand name"/>
-      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Logo image URL</div>
-      <input type="url" class="pinput" id="cfgLogoUrl" placeholder="https://…/logo.png"/>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Logo image</div>
+      <div class="url-row"><input type="url" class="pinput" id="cfgLogoUrl" placeholder="https://… or upload →"/><button class="upbtn" data-ufield="logoUrl">⬆ Upload</button></div>
     </div>
 
     <div class="psec">
       <h3>Background</h3>
-      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Background image URL</div>
-      <input type="url" class="pinput" id="cfgBgUrl" placeholder="https://…/background.jpg"/>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Background image</div>
+      <div class="url-row"><input type="url" class="pinput" id="cfgBgUrl" placeholder="https://… or upload →"/><button class="upbtn" data-ufield="bgUrl">⬆ Upload</button></div>
     </div>
-
 
     <div class="psec">
       <h3>Wheel Background</h3>
       <div class="prow"><label>Background color</label><input type="color" class="pcolor" id="cfgWheelBgColor"/></div>
-      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Background image URL</div>
-      <input type="url" class="pinput" id="cfgWheelBgUrl" placeholder="https://…/texture.jpg"/>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Background image</div>
+      <div class="url-row"><input type="url" class="pinput" id="cfgWheelBgUrl" placeholder="https://… or upload →"/><button class="upbtn" data-ufield="wheelBgUrl">⬆ Upload</button></div>
       <div style="font-size:.72rem;color:#555;margin-bottom:4px">Alignment offset <span id="cfgWheelBgOffsetVal" style="color:#888">0°</span></div>
       <input type="range" id="cfgWheelBgOffset" min="-180" max="180" step="1" value="0" style="width:100%;accent-color:var(--primary);margin-bottom:6px"/>
     </div>
@@ -450,8 +461,8 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 
     <div class="psec">
       <h3>Spin Button</h3>
-      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Custom image URL (replaces the SPIN button)</div>
-      <input type="url" class="pinput" id="cfgSpinBtnUrl" placeholder="https://…/button.png"/>
+      <div style="font-size:.72rem;color:#555;margin-bottom:4px">Custom image (replaces SPIN button)</div>
+      <div class="url-row"><input type="url" class="pinput" id="cfgSpinBtnUrl" placeholder="https://… or upload →"/><button class="upbtn" data-ufield="spinBtnUrl">⬆ Upload</button></div>
     </div>
 
     <div class="psec">
@@ -485,6 +496,9 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 
   </div>
 </div>
+
+<!-- Hidden file input for image uploads -->
+<input type="file" id="lwUpload" accept="image/*" style="display:none"/>
 
 <!-- Result overlay -->
 <div id="overlay">
@@ -1043,8 +1057,14 @@ function renderEntryList() {
         <span class="epct">${pct}%</span>
         <button class="edel" data-i="${i}">✕</button>
       </div>
-      <input type="url" class="epopup" placeholder="Wheel image URL…" value="${esc(e.imageUrl)}" data-img="${i}"/>
-      <input type="url" class="epopup" placeholder="Popup image URL…" value="${esc(e.popupImageUrl)}" data-pi="${i}"/>
+      <div style="display:flex;gap:4px;align-items:center">
+        <input type="url" class="epopup" placeholder="Wheel image URL…" value="${esc(e.imageUrl)}" data-img="${i}" style="flex:1;margin:0"/>
+        <button class="upbtn" data-uimg="${i}" style="font-size:.68rem;padding:3px 7px">⬆</button>
+      </div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <input type="url" class="epopup" placeholder="Popup image URL…" value="${esc(e.popupImageUrl)}" data-pi="${i}" style="flex:1;margin:0"/>
+        <button class="upbtn" data-upi="${i}" style="font-size:.68rem;padding:3px 7px">⬆</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1239,6 +1259,74 @@ document.getElementById('cfgEntryList').addEventListener('input', e => {
     cfg.entries[i] = { ...normEntry(cfg.entries[i]), popupImageUrl: e.target.value.trim() };
     schedSave();
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// IMAGE UPLOAD (Supabase Storage)
+// ═══════════════════════════════════════════════════════════════════════════════
+const SB_BUCKET = 'wheel-images';
+let uploadTarget = null; // { type:'field'|'img'|'pi', key, index }
+
+async function uploadToStorage(file) {
+  const ext = file.name.split('.').pop().toLowerCase() || 'png';
+  const name = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const res = await fetch(`${SB_URL}/storage/v1/object/${SB_BUCKET}/${name}`, {
+    method: 'POST',
+    headers: { 'apikey': getSbAnon(), 'Authorization': `Bearer ${getSbAnon()}`, 'Content-Type': file.type || 'image/png' },
+    body: file,
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(j.message || j.error || `HTTP ${res.status}`);
+  }
+  return `${SB_URL}/storage/v1/object/public/${SB_BUCKET}/${name}`;
+}
+
+function applyUploadedUrl(url) {
+  if (!uploadTarget) return;
+  const { type, key, index } = uploadTarget;
+  if (type === 'field') {
+    cfg[key] = url;
+    const inp = document.getElementById({ logoUrl:'cfgLogoUrl', bgUrl:'cfgBgUrl', wheelBgUrl:'cfgWheelBgUrl', spinBtnUrl:'cfgSpinBtnUrl' }[key]);
+    if (inp) { inp.value = url; inp.dispatchEvent(new Event('input')); }
+  } else if (type === 'img') {
+    cfg.entries[index] = { ...normEntry(cfg.entries[index]), imageUrl: url };
+    preloadPrizeImages(); renderEntryList(); drawWheel(); schedSave();
+  } else if (type === 'pi') {
+    cfg.entries[index] = { ...normEntry(cfg.entries[index]), popupImageUrl: url };
+    renderEntryList(); schedSave();
+  }
+}
+
+document.getElementById('lwUpload').addEventListener('change', async function() {
+  const file = this.files[0]; if (!file || !uploadTarget) return;
+  const btn = uploadTarget.btn;
+  if (btn) { btn.textContent = '…'; btn.classList.add('uploading'); }
+  try {
+    const url = await uploadToStorage(file);
+    applyUploadedUrl(url);
+    showToast('✓ Image uploaded', 'success');
+  } catch(e) {
+    showToast('✗ Upload failed: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.textContent = btn.dataset.origText || '⬆ Upload'; btn.classList.remove('uploading'); }
+    this.value = '';
+  }
+});
+
+function triggerUpload(target, btn) {
+  uploadTarget = { ...target, btn };
+  if (btn) { btn.dataset.origText = btn.textContent; }
+  document.getElementById('lwUpload').click();
+}
+
+// Upload button clicks (static fields)
+document.getElementById('panelBody').addEventListener('click', e => {
+  const btn = e.target.closest('.upbtn');
+  if (!btn) return;
+  if (btn.dataset.ufield) { triggerUpload({ type: 'field', key: btn.dataset.ufield }, btn); return; }
+  if (btn.dataset.uimg !== undefined) { triggerUpload({ type: 'img', index: Number(btn.dataset.uimg) }, btn); return; }
+  if (btn.dataset.upi  !== undefined) { triggerUpload({ type: 'pi',  index: Number(btn.dataset.upi)  }, btn); return; }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

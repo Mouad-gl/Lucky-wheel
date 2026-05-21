@@ -1,5 +1,6 @@
 -- Run this in your Supabase SQL editor (https://supabase.com/dashboard/project/iyzjyxlegljwcbmayhqq/sql)
 
+-- ─── wheel_config table ───────────────────────────────────────────────────────
 create table if not exists wheel_config (
   id          integer primary key default 1,
   brand_name  text    default 'LUCKY WHEEL',
@@ -19,15 +20,32 @@ create table if not exists wheel_config (
   updated_at  timestamptz default now()
 );
 
--- If the table already exists, add the new columns:
 alter table wheel_config add column if not exists wheel_bg_color text default '#111111';
 alter table wheel_config add column if not exists wheel_bg_url   text;
 
--- Seed the single config row
 insert into wheel_config (id) values (1) on conflict (id) do nothing;
 
--- RLS: anyone can read, anyone can update (public wheel config)
 alter table wheel_config enable row level security;
-
 create policy "public_read"   on wheel_config for select using (true);
 create policy "public_update" on wheel_config for update using (true);
+grant select, update on wheel_config to anon;
+
+-- ─── Storage bucket for wheel images ─────────────────────────────────────────
+-- 1. Go to Storage in your Supabase dashboard and create a bucket named
+--    "wheel-images" with "Public bucket" checked.
+--    OR run the insert below (requires service role):
+-- insert into storage.buckets (id, name, public) values ('wheel-images', 'wheel-images', true)
+--   on conflict (id) do nothing;
+
+-- 2. Run these policies so the anon key can upload and read images:
+create policy "anon_upload" on storage.objects
+  for insert to anon
+  with check (bucket_id = 'wheel-images');
+
+create policy "anon_read" on storage.objects
+  for select to anon
+  using (bucket_id = 'wheel-images');
+
+create policy "anon_delete" on storage.objects
+  for delete to anon
+  using (bucket_id = 'wheel-images');
