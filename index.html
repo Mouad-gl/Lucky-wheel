@@ -218,6 +218,7 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 .eitem{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;transition:background .15s;cursor:default}
 .eitem:hover{background:rgba(255,255,255,.05)}
 .edot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.entry-thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;background:rgba(255,255,255,.05)}
 .elbl{flex:1;font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .edel{background:none;border:none;color:rgba(255,80,80,.5);cursor:pointer;font-size:.85rem;padding:2px 6px;border-radius:4px;transition:color .15s,background .15s;line-height:1}
 .edel:hover{color:#ff5555;background:rgba(255,85,85,.12)}
@@ -379,9 +380,12 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
     <div class="psec">
       <h3>Prizes</h3>
       <div class="elist" id="cfgEntryList"></div>
-      <div class="eadd-row">
-        <input type="text" id="cfgEntryInput" placeholder="Add prize…" maxlength="40"/>
-        <button class="eadd-btn" id="cfgAddBtn">+</button>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="eadd-row">
+          <input type="text" id="cfgEntryLabel" placeholder="Prize name" maxlength="40"/>
+          <button class="eadd-btn" id="cfgAddBtn">+</button>
+        </div>
+        <input type="url" class="pinput" id="cfgEntryImage" placeholder="Image URL (optional)" style="margin-bottom:0"/>
       </div>
     </div>
 
@@ -408,6 +412,7 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 <div id="overlay">
   <div class="rcard">
     <div class="rtrophy">🏆</div>
+    <img id="resultImg" src="" alt="" style="display:none;width:96px;height:96px;object-fit:cover;border-radius:12px;margin:0 auto 12px;box-shadow:0 4px 20px rgba(0,0,0,.6)"/>
     <div class="rlbl">Winner</div>
     <div class="rwinner" id="resultText"></div>
     <button class="rclose" id="resultClose">Awesome!</button>
@@ -458,7 +463,7 @@ async function sbSave(data) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════════════════════════
-const LS_KEY = 'lwCfg_v4';
+const LS_KEY = 'lwCfg_v5';
 const DEFAULTS = {
   brand: 'LUCKY WHEEL', logoUrl: '', bgUrl: '',
   color1: '#00E676', color2: '#000000',
@@ -466,8 +471,19 @@ const DEFAULTS = {
   showLabels: true, showStore: true,
   appStoreSub: 'Download on the', appStoreUrl: '',
   googlePlaySub: 'Get it on', googlePlayUrl: '',
-  entries: ['Prize 1','Prize 2','Prize 3','Prize 4','Prize 5','Prize 6','Prize 7','Prize 8'],
+  entries: [
+    {label:'Prize 1',imageUrl:''},{label:'Prize 2',imageUrl:''},
+    {label:'Prize 3',imageUrl:''},{label:'Prize 4',imageUrl:''},
+    {label:'Prize 5',imageUrl:''},{label:'Prize 6',imageUrl:''},
+    {label:'Prize 7',imageUrl:''},{label:'Prize 8',imageUrl:''},
+  ],
 };
+
+// Normalise an entry — handles old string format and new object format
+function normEntry(e) {
+  if (typeof e === 'string') return { label: e, imageUrl: '' };
+  return { label: e.label || '', imageUrl: e.imageUrl || '' };
+}
 
 let cfg = (() => {
   try { const s = JSON.parse(localStorage.getItem(LS_KEY)); return s ? {...DEFAULTS,...s} : {...DEFAULTS}; }
@@ -535,7 +551,7 @@ function rowToCfg(r) {
     appStoreUrl: r.app_store_url || '',
     googlePlaySub: r.google_play_label || DEFAULTS.googlePlaySub,
     googlePlayUrl: r.google_play_url || '',
-    entries: Array.isArray(r.entries) ? r.entries : DEFAULTS.entries,
+    entries: Array.isArray(r.entries) ? r.entries.map(normEntry) : DEFAULTS.entries,
   };
 }
 
@@ -583,6 +599,20 @@ function loadWheelBgImg(url) {
   wheelBgImg.crossOrigin = 'anonymous';
   wheelBgImg.onload = () => drawWheel();
   wheelBgImg.src = url;
+}
+
+// Prize image cache
+const prizeImgCache = {};
+function preloadPrizeImages() {
+  cfg.entries.forEach(e => {
+    const url = normEntry(e).imageUrl;
+    if (!url || prizeImgCache[url]) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => drawWheel();
+    img.src = url;
+    prizeImgCache[url] = img;
+  });
 }
 
 function setSize() {
@@ -658,22 +688,58 @@ function drawWheel(r) {
 
   if (cfg.showLabels) {
     const fs = n>12 ? 9 : n>8 ? 11 : 13;
-    cfg.entries.forEach((entry,i) => {
-      const mid = rot + i*arc - Math.PI/2 + arc/2;
-      ctx.save();
-      ctx.translate(cx + radius*0.60*Math.cos(mid), cy + radius*0.60*Math.sin(mid));
-      ctx.rotate(mid + Math.PI/2);
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.font=`bold ${fs}px Segoe UI,sans-serif`;
-      ctx.fillStyle = cfg.color1.toLowerCase()===cfg.color2.toLowerCase() ? '#fff'
-        : i%2===0 ? cfg.color2 : cfg.color1;
-      ctx.shadowColor='rgba(0,0,0,0.95)'; ctx.shadowBlur=5;
-      let txt = entry;
-      const maxW = radius*0.42;
-      while (ctx.measureText(txt).width>maxW && txt.length>1) txt=txt.slice(0,-1);
-      if (txt!==entry) txt=txt.slice(0,-1)+'…';
-      ctx.fillText(txt, 0, 0);
-      ctx.restore();
+    const textColor = i => cfg.color1.toLowerCase()===cfg.color2.toLowerCase() ? '#fff'
+      : i%2===0 ? cfg.color2 : cfg.color1;
+
+    cfg.entries.forEach((rawEntry, i) => {
+      const entry   = normEntry(rawEntry);
+      const mid     = rot + i*arc - Math.PI/2 + arc/2;
+      const labelR  = radius * 0.60;
+      const imgSize = Math.min(radius * 0.28, labelR * arc * 0.72);
+      const lx      = cx + labelR * Math.cos(mid);
+      const ly      = cy + labelR * Math.sin(mid);
+
+      const img = entry.imageUrl && prizeImgCache[entry.imageUrl];
+      const imgReady = img && img.complete && img.naturalWidth > 0;
+
+      if (imgReady) {
+        // Draw circular clipped image
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(lx, ly, imgSize/2, 0, Math.PI*2);
+        ctx.clip();
+        ctx.drawImage(img, lx - imgSize/2, ly - imgSize/2, imgSize, imgSize);
+        ctx.restore();
+
+        // Label below image (if set)
+        if (entry.label) {
+          ctx.save();
+          ctx.translate(lx, ly);
+          ctx.rotate(mid + Math.PI/2);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.font = `bold ${Math.max(8,fs-1)}px Segoe UI,sans-serif`;
+          ctx.fillStyle = textColor(i);
+          ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 4;
+          ctx.fillText(entry.label.slice(0,12), 0, imgSize/2 + 3);
+          ctx.restore();
+        }
+      } else {
+        // Text only
+        ctx.save();
+        ctx.translate(lx, ly);
+        ctx.rotate(mid + Math.PI/2);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = `bold ${fs}px Segoe UI,sans-serif`;
+        ctx.fillStyle = textColor(i);
+        ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 5;
+        let txt = entry.label;
+        const maxW = radius*0.42;
+        while (ctx.measureText(txt).width > maxW && txt.length > 1) txt = txt.slice(0,-1);
+        if (txt !== entry.label) txt = txt.slice(0,-1) + '…';
+        ctx.fillText(txt, 0, 0);
+        ctx.restore();
+      }
     });
   }
 }
@@ -710,8 +776,20 @@ function winnerIndex() {
 }
 
 function showResult() {
-  document.getElementById('resultText').textContent = cfg.entries[winnerIndex()];
-  document.getElementById('overlay').classList.add('show');
+  const winner = normEntry(cfg.entries[winnerIndex()]);
+  const ov = document.getElementById('overlay');
+  document.getElementById('resultText').textContent = winner.label;
+
+  // Show winner image in overlay if available
+  const imgEl = document.getElementById('resultImg');
+  if (winner.imageUrl) {
+    imgEl.src = winner.imageUrl;
+    imgEl.style.display = 'block';
+  } else {
+    imgEl.style.display = 'none';
+  }
+
+  ov.classList.add('show');
   launchConfetti();
 }
 
@@ -792,6 +870,7 @@ function applyConfig() {
   document.getElementById('cfgGooglePlayUrl').value  = cfg.googlePlayUrl  || '';
 
   document.getElementById('spinBtn').disabled = cfg.entries.length < 2;
+  preloadPrizeImages();
   renderEntryList();
   drawWheel();
 }
@@ -802,10 +881,18 @@ function renderEntryList() {
     list.innerHTML = '<div style="font-size:.8rem;color:#444;text-align:center;padding:12px 0">No prizes yet</div>';
     return;
   }
-  list.innerHTML = cfg.entries.map((e,i) => {
+  list.innerHTML = cfg.entries.map((raw, i) => {
+    const e   = normEntry(raw);
     const col = i%2===0 ? cfg.color1 : cfg.color2;
     const dot = ['#000','#000000'].includes(col.toLowerCase()) ? '#2a2a2a' : col;
-    return `<div class="eitem"><span class="edot" style="background:${dot};outline:1px solid rgba(255,255,255,.1)"></span><span class="elbl">${esc(e)}</span><button class="edel" data-i="${i}">✕</button></div>`;
+    const thumb = e.imageUrl
+      ? `<img src="${esc(e.imageUrl)}" class="entry-thumb" onerror="this.style.opacity='.2'" alt=""/>`
+      : `<span class="edot" style="background:${dot};outline:1px solid rgba(255,255,255,.1)"></span>`;
+    return `<div class="eitem">
+      ${thumb}
+      <span class="elbl">${esc(e.label || '(no label)')}</span>
+      <button class="edel" data-i="${i}">✕</button>
+    </div>`;
   }).join('');
 }
 
@@ -892,15 +979,20 @@ document.getElementById('cfgShowStore').addEventListener('change', e => {
 });
 
 // Entries
-function addEntry(label) {
-  label = label.trim(); if(!label) return;
-  cfg.entries.push(label);
-  document.getElementById('cfgEntryInput').value = '';
+function addEntry() {
+  const label    = document.getElementById('cfgEntryLabel').value.trim();
+  const imageUrl = document.getElementById('cfgEntryImage').value.trim();
+  if (!label && !imageUrl) return;
+  const entry = { label, imageUrl };
+  cfg.entries.push(entry);
+  document.getElementById('cfgEntryLabel').value = '';
+  document.getElementById('cfgEntryImage').value = '';
+  if (imageUrl) preloadPrizeImages();
   document.getElementById('spinBtn').disabled = cfg.entries.length < 2;
   renderEntryList(); drawWheel(); schedSave();
 }
-document.getElementById('cfgAddBtn').addEventListener('click', () => addEntry(document.getElementById('cfgEntryInput').value));
-document.getElementById('cfgEntryInput').addEventListener('keydown', e => { if(e.key==='Enter') addEntry(e.target.value); });
+document.getElementById('cfgAddBtn').addEventListener('click', addEntry);
+document.getElementById('cfgEntryLabel').addEventListener('keydown', e => { if(e.key==='Enter') addEntry(); });
 document.getElementById('cfgEntryList').addEventListener('click', e => {
   const btn = e.target.closest('.edel'); if(!btn) return;
   cfg.entries.splice(Number(btn.dataset.i),1);
