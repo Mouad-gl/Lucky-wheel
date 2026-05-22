@@ -472,9 +472,59 @@ input[type="color"].pcolor{width:38px;height:30px;border:none;border-radius:6px;
 }
 #loadingRing.visible{opacity:1}
 @keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+/* ── Loading / splash screen ── */
+#loadScreen{
+  position:fixed;inset:0;z-index:9999;
+  background:#0b1219;
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity .55s ease;
+}
+#loadScreen.hide{opacity:0;pointer-events:none}
+#loadBox{
+  display:flex;flex-direction:column;align-items:center;
+  gap:20px;width:min(320px,78vw);
+  position:relative;
+}
+/* corner brackets on load box */
+#loadBox::before,#loadBox::after{
+  content:'';position:absolute;width:16px;height:16px;
+  border-color:rgba(190,205,220,.35);border-style:solid;
+}
+#loadBox::before{top:-14px;left:-14px;border-width:1.5px 0 0 1.5px}
+#loadBox::after{bottom:-14px;right:-14px;border-width:0 1.5px 1.5px 0}
+#loadLogo{
+  width:min(200px,60vw);height:auto;
+  object-fit:contain;
+  filter:drop-shadow(0 0 24px rgba(0,180,255,.18));
+}
+#loadLabel{
+  font-size:.62rem;font-weight:700;letter-spacing:.18em;
+  text-transform:uppercase;color:rgba(190,205,220,.45);
+}
+#loadBar{
+  width:100%;display:flex;gap:2px;height:5px;
+}
+.lseg{flex:1;height:100%;background:rgba(190,205,220,.12);transition:background .07s}
+.lseg.filled{background:rgba(190,205,220,.65)}
+#loadPct{
+  font-size:.6rem;color:rgba(190,205,220,.45);
+  font-family:monospace;letter-spacing:.05em;align-self:flex-end;
+}
 </style>
 </head>
 <body>
+
+<!-- Splash / loading screen -->
+<div id="loadScreen">
+  <div id="loadBox">
+    <img id="loadLogo" src="https://iyzjyxlegljwcbmayhqq.supabase.co/storage/v1/object/public/wheel-images/DFLOGO.png" alt=""/>
+    <div id="loadLabel">&gt;&gt; INITIALIZING SYSTEM</div>
+    <div id="loadBar"></div>
+    <div id="loadPct">[0%]</div>
+  </div>
+</div>
+
 
 <div id="app">
   <header style="display:flex;flex-direction:column;align-items:center;gap:6px">
@@ -1661,8 +1711,43 @@ document.getElementById('panelBody').addEventListener('click', e => {
 // ═══════════════════════════════════════════════════════════════════════════════
 setSize();
 applyConfig();
-loadFromSupabase();
 startIdleAnim();
+
+// ── Splash screen + load ──────────────────────────────────────────────────────
+(async () => {
+  const N      = 28;
+  const bar    = document.getElementById('loadBar');
+  const pctEl  = document.getElementById('loadPct');
+  bar.innerHTML = Array.from({length:N}, () => '<div class="lseg"></div>').join('');
+  const segs   = bar.querySelectorAll('.lseg');
+  let filled   = 0;
+
+  function fillTo(target, ms) {
+    return new Promise(resolve => {
+      const iv = setInterval(() => {
+        if (filled < target && filled < N) {
+          segs[filled].classList.add('filled');
+          filled++;
+          pctEl.textContent = '[' + Math.round(filled / N * 100) + '%]';
+        } else { clearInterval(iv); resolve(); }
+      }, ms);
+    });
+  }
+
+  // Fill to 72% while Supabase loads (runs concurrently)
+  const partial = fillTo(Math.floor(N * 0.72), 52);
+  const load    = loadFromSupabase();
+  await Promise.all([partial, load]);
+
+  // Finish the remaining segments quickly
+  await fillTo(N, 35);
+  pctEl.textContent = '[100%]';
+
+  // Fade out and remove
+  const screen = document.getElementById('loadScreen');
+  screen.classList.add('hide');
+  setTimeout(() => screen.remove(), 600);
+})();
 </script>
 </body>
 </html>
