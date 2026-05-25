@@ -971,7 +971,7 @@ function preloadPrizeImages() {
 }
 
 function setSize() {
-  WS = Math.min(window.innerWidth - 32, 460);
+  WS = Math.min(window.innerWidth - 32, 552);
   const dpr = window.devicePixelRatio || 1;
   canvas.width = canvas.height = WS * dpr;
   canvas.style.width = canvas.style.height = WS + 'px';
@@ -1094,20 +1094,48 @@ function drawWheel(r) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// IDLE ANIMATION
+// IDLE ANIMATION  — spin burst → ease to stop → pause → repeat
 // ═══════════════════════════════════════════════════════════════════════════════
-let idleRaf = null;
-const IDLE_SPEED = Math.PI * 2 / (9 * 60); // ~1 rotation per 9 s at 60 fps
+let idleRaf       = null;
+let idlePhase     = 'pause';   // 'spin' | 'pause'
+let idlePhaseT0   = 0;
+let idleSpinBase  = 0;         // rot at start of each spin burst
+
+const IDLE_SPIN_DUR   = 1600;           // ms per burst
+const IDLE_PAUSE_DUR  = 1100;           // ms of stillness between bursts
+const IDLE_SPIN_ARC   = Math.PI * 2 * 0.55; // ~0.55 rotations per burst
+
+function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
+
+function idleTick(now) {
+  if (spinning) { idleRaf = null; return; }
+  const elapsed = now - idlePhaseT0;
+
+  if (idlePhase === 'spin') {
+    const t = Math.min(elapsed / IDLE_SPIN_DUR, 1);
+    rot = idleSpinBase + IDLE_SPIN_ARC * easeOutQuart(t);
+    drawWheel(rot);
+    if (t >= 1) {
+      idlePhase  = 'pause';
+      idlePhaseT0 = now;
+    }
+  } else {
+    if (elapsed >= IDLE_PAUSE_DUR) {
+      idlePhase   = 'spin';
+      idlePhaseT0  = now;
+      idleSpinBase = rot;
+    }
+  }
+
+  idleRaf = requestAnimationFrame(idleTick);
+}
 
 function startIdleAnim() {
   if (idleRaf || spinning) return;
-  function tick() {
-    if (spinning) { idleRaf = null; return; }
-    rot += IDLE_SPEED;
-    drawWheel();
-    idleRaf = requestAnimationFrame(tick);
-  }
-  idleRaf = requestAnimationFrame(tick);
+  idlePhase    = 'pause';
+  idlePhaseT0  = performance.now();
+  idleSpinBase = rot;
+  idleRaf = requestAnimationFrame(idleTick);
 }
 
 function stopIdleAnim() {
@@ -1117,7 +1145,7 @@ function stopIdleAnim() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // SPIN
 // ═══════════════════════════════════════════════════════════════════════════════
-const SPIN_DURATIONS = [8000, 6500, 5000, 3200, 1800]; // index 0=slowest, 4=fastest
+const SPIN_DURATIONS = [10000, 8500, 6800, 5000, 3200]; // index 0=slowest, 4=fastest
 let currentWinner = 0;
 
 function spin() {
